@@ -8,13 +8,14 @@ import Data.Text (Text)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
+import Text.Pandoc.Definition (Attr)
 import Reflex.Dom.Core
 
 elPandocAttr
   :: DomBuilder t m
   => Text
   -- ^ Element name
-  -> (String, [String], [(String, String)])
+  -> Attr
   -- ^ Pandoc attribute object. TODO: Use a sensible type.
   -> m a
   -- ^ Child widget
@@ -22,20 +23,20 @@ elPandocAttr
 elPandocAttr name = elAttr name . renderAttr
 
 renderAttr
-  :: (String, [String], [(String, String)])
+  :: Attr
   -- ^ Pandoc attribute object. TODO: Use a sensible type.
   -> Map Text Text
 renderAttr (identifier, classes, attrs) =
-     "id" =: T.pack identifier
-  <> "class" =: T.pack (unwords classes)
-  <> Map.fromList ((\(x,y) -> (T.pack x, T.pack y)) <$> attrs)
+     "id" =: identifier
+  <> "class" =: (T.unwords classes)
+  <> Map.fromList attrs
 
 addClass
-  :: String
+  :: Text
   -- ^ The class to add
-  -> (String, [String], [(String, String)])
+  -> Attr
   -- ^ Pandoc attribute object. TODO: Use a sensible type.
-  -> (String, [String], [(String, String)])
+  -> Attr
 addClass c (identifier, classes, attrs) = (identifier, c : classes, attrs)
 
 headerElement :: Int -> Text

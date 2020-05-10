@@ -15,7 +15,7 @@ import qualified Data.Text as T
 
 import Reflex.Dom.Core hiding (Link, Space)
 
-import Text.Pandoc (Block (..), Inline (..), Pandoc (..))
+import Text.Pandoc.Definition (Block (..), Inline (..), Pandoc (..))
 
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
@@ -66,7 +66,7 @@ renderBlock = \case
   Header level attr xs -> elPandocAttr (headerElement level) attr $ do
     mapM_ renderInline xs
   HorizontalRule -> el "hr" blank
-  v@(Table _ _ _ _ _) -> notImplemented v
+  v@(Table _ _ _ _ _ _) -> notImplemented v
   Div attr xs -> elPandocAttr "div" attr $
     mapM_ renderBlock xs
   Null -> blank
@@ -79,9 +79,10 @@ renderBlock = \case
 
 renderInline :: DomBuilder t m => Inline -> m ()
 renderInline = \case
-  Str x -> text $ T.pack x
+  Str x -> text $ x
   Emph xs -> el "em" $ mapM_ renderInline xs
   Strong xs -> el "strong" $ mapM_ renderInline xs
+  Underline xs -> el "u" $ mapM_ renderInline xs
   Strikeout xs -> el "strike" $ mapM_ renderInline xs
   Superscript xs -> el "sup" $ mapM_ renderInline xs
   Subscript xs -> el "sub" $ mapM_ renderInline xs
@@ -89,17 +90,17 @@ renderInline = \case
   v@(Quoted _qt _xs) -> notImplemented v
   v@(Cite _ _) -> notImplemented v
   Code attr x -> elPandocAttr "code" attr $
-    text $ T.pack x
+    text x
   Space -> text " "
   SoftBreak -> text " "
   LineBreak -> text "\n"
   v@(Math _ _) -> notImplemented v
   v@(RawInline _ _) -> notImplemented v
   Link attr xs (lUrl, lTitle) -> do
-    let attr' = renderAttr attr <> ("href" =: T.pack lUrl <> "title" =: T.pack lTitle)
+    let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
     elAttr "a" attr' $ mapM_ renderInline xs
   Image attr xs (iUrl, iTitle) -> do
-    let attr' = renderAttr attr <> ("src" =: T.pack iUrl <> "title" =: T.pack iTitle)
+    let attr' = renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ mapM_ renderInline xs
   Note xs -> el "aside" $ mapM_ renderBlock xs
   Span attr xs -> elPandocAttr "span" attr $

@@ -1,31 +1,37 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Reflex.Dom.Pandoc.SyntaxHighlighting where
 
 import Control.Monad (forM_)
-import qualified Data.Text as T
+import Data.Text (Text)
 
 import Clay
 import Reflex.Dom.Core
+import Text.Pandoc.Definition (Attr)
 
 import qualified Skylighting as S
-import Text.Pandoc.Highlighting (highlight)
+-- import Text.Pandoc.Highlighting (highlight)
 
 import Reflex.Dom.Pandoc.Util (addClass, elPandocAttr)
 
 elCodeHighlighted
-  :: DomBuilder t m
-  => (String, [String], [(String, String)])
+  :: forall t m. DomBuilder t m
+  => Attr
   -- ^ Pandoc attribute object. TODO: Use a sensible type.
-  -> String
+  -> Text
   -- ^ Code to highlight.
   -> m ()
-elCodeHighlighted attrs x =
+elCodeHighlighted attrs _x =
   elPandocAttr "pre" (addClass "sourceCode" attrs) $ el "code" $
-    case highlight S.defaultSyntaxMap formatCode attrs x of
-      Left _err -> text $ T.pack x
-      Right w -> w
+    -- TODO: Use skylight directly like MMark does
+    -- https://github.com/mmark-md/mmark-ext/blob/master/Text/MMark/Extension/Skylighting.hs#L69
+    text $ "TODO: Not Implemented"
+    --case highlight S.defaultSyntaxMap formatCode attrs x of
+    --  Left _err -> text $ T.pack x
+    --  Right w -> w
+  where
 
 -- | Highlight code syntax with Reflex widgets
 formatCode :: DomBuilder t m => S.FormatOptions -> [S.SourceLine] -> m ()

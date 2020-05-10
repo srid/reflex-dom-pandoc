@@ -37,7 +37,6 @@ library
     , lens
     , lens-aeson
     , mtl
-    , pandoc >= 2.6
     , pandoc-types
     , reflex-dom-core
     , safe
