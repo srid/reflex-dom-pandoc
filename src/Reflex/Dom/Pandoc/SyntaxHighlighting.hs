@@ -27,7 +27,7 @@ elCodeHighlighted attrs _x =
   elPandocAttr "pre" (addClass "sourceCode" attrs) $ el "code" $
     -- TODO: Use skylight directly like MMark does
     -- https://github.com/mmark-md/mmark-ext/blob/master/Text/MMark/Extension/Skylighting.hs#L69
-    text $ "TODO: Not Implemented"
+    text $ "TODO: Not Implemented (syntax highlighting)"
     --case highlight S.defaultSyntaxMap formatCode attrs x of
     --  Left _err -> text $ T.pack x
     --  Right w -> w
