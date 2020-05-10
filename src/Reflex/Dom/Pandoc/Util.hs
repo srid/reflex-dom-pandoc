@@ -3,40 +3,38 @@
 module Reflex.Dom.Pandoc.Util where
 
 import Data.Map (Map)
-import Data.Text (Text)
-
 import qualified Data.Map as Map
+import Data.Text (Text)
 import qualified Data.Text as T
-
-import Text.Pandoc.Definition (Attr)
 import Reflex.Dom.Core
+import Text.Pandoc.Definition (Attr)
 
-elPandocAttr
-  :: DomBuilder t m
-  => Text
-  -- ^ Element name
-  -> Attr
-  -- ^ Pandoc attribute object. TODO: Use a sensible type.
-  -> m a
-  -- ^ Child widget
-  -> m a
+elPandocAttr ::
+  DomBuilder t m =>
+  -- | Element name
+  Text ->
+  -- | Pandoc attribute object. TODO: Use a sensible type.
+  Attr ->
+  -- | Child widget
+  m a ->
+  m a
 elPandocAttr name = elAttr name . renderAttr
 
-renderAttr
-  :: Attr
-  -- ^ Pandoc attribute object. TODO: Use a sensible type.
-  -> Map Text Text
+renderAttr ::
+  -- | Pandoc attribute object. TODO: Use a sensible type.
+  Attr ->
+  Map Text Text
 renderAttr (identifier, classes, attrs) =
-     "id" =: identifier
-  <> "class" =: (T.unwords classes)
-  <> Map.fromList attrs
+  "id" =: identifier
+    <> "class" =: (T.unwords classes)
+    <> Map.fromList attrs
 
-addClass
-  :: Text
-  -- ^ The class to add
-  -> Attr
-  -- ^ Pandoc attribute object. TODO: Use a sensible type.
-  -> Attr
+addClass ::
+  -- | The class to add
+  Text ->
+  -- | Pandoc attribute object. TODO: Use a sensible type.
+  Attr ->
+  Attr
 addClass c (identifier, classes, attrs) = (identifier, c : classes, attrs)
 
 headerElement :: Int -> Text

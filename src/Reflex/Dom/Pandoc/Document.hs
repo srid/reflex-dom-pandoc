@@ -3,22 +3,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Reflex.Dom.Pandoc.Document
-  ( elPandocDoc
-  , elPandocInlines
-  , elPandocHeading1
-  ) where
+  ( elPandocDoc,
+    elPandocInlines,
+    elPandocHeading1,
+  )
+where
 
 import Control.Monad
 import Data.Bool
 import Data.Maybe
 import qualified Data.Text as T
-
 import Reflex.Dom.Core hiding (Link, Space)
-
-import Text.Pandoc.Definition (Block (..), Inline (..), Pandoc (..))
-
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
+import Text.Pandoc.Definition (Block (..), Inline (..), Pandoc (..))
 
 -- | Convert Markdown to HTML
 --
@@ -42,11 +40,10 @@ elPandocInlines = mapM_ renderInline
 renderBlock :: DomBuilder t m => Block -> m ()
 renderBlock = \case
   -- Pandoc parses github tasklist as this structure.
-  Plain (Str "☐":Space:is) -> checkboxEl False >> mapM_ renderInline is
-  Plain (Str "☒":Space:is) -> checkboxEl True >> mapM_ renderInline is
-  Para (Str "☐":Space:is) -> checkboxEl False >> mapM_ renderInline is
-  Para (Str "☒":Space:is) -> checkboxEl True >> mapM_ renderInline is
-
+  Plain (Str "☐" : Space : is) -> checkboxEl False >> mapM_ renderInline is
+  Plain (Str "☒" : Space : is) -> checkboxEl True >> mapM_ renderInline is
+  Para (Str "☐" : Space : is) -> checkboxEl False >> mapM_ renderInline is
+  Para (Str "☒" : Space : is) -> checkboxEl True >> mapM_ renderInline is
   Plain xs -> mapM_ renderInline xs
   Para xs -> el "p" $ mapM_ renderInline xs
   LineBlock xss -> forM_ xss $ \xs -> do
@@ -55,9 +52,11 @@ renderBlock = \case
   CodeBlock attr x -> elCodeHighlighted attr x
   v@(RawBlock _ _) -> notImplemented v
   BlockQuote xs -> el "blockquote" $ mapM_ renderBlock xs
-  OrderedList _lattr xss -> el "ol" $
+  OrderedList _lattr xss -> el "ol"
+    $
     -- TODO: Implement list attributes.
-    forM_ xss $ \xs -> el "li" $ mapM_ renderBlock xs
+    forM_ xss
+    $ \xs -> el "li" $ mapM_ renderBlock xs
   BulletList xss -> el "ul" $ forM_ xss $ \xs -> el "li" $ mapM_ renderBlock xs
   DefinitionList defs -> el "dl" $ forM_ defs $ \(term, descList) -> do
     el "dt" $ mapM_ renderInline term
@@ -67,15 +66,22 @@ renderBlock = \case
     mapM_ renderInline xs
   HorizontalRule -> el "hr" blank
   v@(Table _ _ _ _ _ _) -> notImplemented v
-  Div attr xs -> elPandocAttr "div" attr $
-    mapM_ renderBlock xs
+  Div attr xs ->
+    elPandocAttr "div" attr $
+      mapM_ renderBlock xs
   Null -> blank
   where
-    checkboxEl checked = void $ elAttr "input" (mconcat $ catMaybes $
-      [ Just $ "type" =: "checkbox"
-      , Just $ "disabled" =: "True"
-      , bool Nothing (Just $ "checked" =: "True") checked
-      ]) blank
+    checkboxEl checked =
+      void $
+        elAttr
+          "input"
+          ( mconcat $ catMaybes $
+              [ Just $ "type" =: "checkbox",
+                Just $ "disabled" =: "True",
+                bool Nothing (Just $ "checked" =: "True") checked
+              ]
+          )
+          blank
 
 renderInline :: DomBuilder t m => Inline -> m ()
 renderInline = \case
@@ -89,8 +95,9 @@ renderInline = \case
   SmallCaps xs -> el "small" $ mapM_ renderInline xs
   v@(Quoted _qt _xs) -> notImplemented v
   v@(Cite _ _) -> notImplemented v
-  Code attr x -> elPandocAttr "code" attr $
-    text x
+  Code attr x ->
+    elPandocAttr "code" attr $
+      text x
   Space -> text " "
   SoftBreak -> text " "
   LineBreak -> text "\n"
@@ -103,8 +110,9 @@ renderInline = \case
     let attr' = renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ mapM_ renderInline xs
   Note xs -> el "aside" $ mapM_ renderBlock xs
-  Span attr xs -> elPandocAttr "span" attr $
-    mapM_ renderInline xs
+  Span attr xs ->
+    elPandocAttr "span" attr $
+      mapM_ renderInline xs
 
 notImplemented :: (DomBuilder t m, Show a) => a -> m ()
 notImplemented x = do
