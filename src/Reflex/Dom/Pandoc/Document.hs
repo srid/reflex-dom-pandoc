@@ -109,6 +109,8 @@ renderInline = \case
   Image attr xs (iUrl, iTitle) -> do
     let attr' = renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ mapM_ renderInline xs
+  -- TODO: This is wrong; footnotes use this. They should be rendered at bottom, not inline.
+  -- Need to do with State monad I think.
   Note xs -> el "aside" $ mapM_ renderBlock xs
   Span attr xs ->
     elPandocAttr "span" attr $
