@@ -16,7 +16,7 @@ import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
-import Text.Pandoc.Definition (Block (..), Inline (..), Pandoc (..))
+import Text.Pandoc.Definition (Block (..), Inline (..), MathType (..), Pandoc (..))
 
 -- | Convert Markdown to HTML
 --
@@ -101,8 +101,16 @@ renderInline = \case
   Space -> text " "
   SoftBreak -> text " "
   LineBreak -> text "\n"
-  v@(Math _ _) -> notImplemented v
   v@(RawInline _ _) -> notImplemented v
+  Math mathType s ->
+    -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
+    -- $$..$$ for block display
+    -- \(..\) for inline display
+    case mathType of
+      InlineMath ->
+        elClass "span" "math inline" $ text $ "\\(" <> s <> "\\)"
+      DisplayMath ->
+        elClass "span" "math display" $ text "$$" >> text s >> text "$$"
   Link attr xs (lUrl, lTitle) -> do
     let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
     elAttr "a" attr' $ mapM_ renderInline xs
