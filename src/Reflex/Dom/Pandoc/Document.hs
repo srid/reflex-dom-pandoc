@@ -104,8 +104,6 @@ renderInline = \case
   v@(RawInline _ _) -> notImplemented v
   Math mathType s ->
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
-    -- $$..$$ for block display
-    -- \(..\) for inline display
     case mathType of
       InlineMath ->
         elClass "span" "math inline" $ text $ "\\(" <> s <> "\\)"

@@ -4,15 +4,13 @@
 
 module Reflex.Dom.Pandoc.SyntaxHighlighting where
 
-import Clay
-import Control.Monad (forM_)
+import Control.Monad (forM_, msum)
 import Data.Text (Text)
 import Reflex.Dom.Core
--- import Text.Pandoc.Highlighting (highlight)
-
-import Reflex.Dom.Pandoc.Util (addClass, elPandocAttr)
+import Reflex.Dom.Pandoc.Util (elPandocAttr)
 import qualified Skylighting as S
 import Text.Pandoc.Definition (Attr)
+import Prelude hiding (lines)
 
 elCodeHighlighted ::
   forall t m.
@@ -22,89 +20,61 @@ elCodeHighlighted ::
   -- | Code to highlight.
   Text ->
   m ()
-elCodeHighlighted attrs _x =
-  elPandocAttr "pre" (addClass "sourceCode" attrs) $ el "code"
-    $
-    -- TODO: Use skylight directly like MMark does
-    -- https://github.com/mmark-md/mmark-ext/blob/master/Text/MMark/Extension/Skylighting.hs#L69
-    text
-    $ "TODO: Not Implemented (syntax highlighting)"
-  --case highlight S.defaultSyntaxMap formatCode attrs x of
-  --  Left _err -> text $ T.pack x
-  --  Right w -> w
+elCodeHighlighted attr@(_, langClasses, _) x = do
+  case tokenizeForOneOfLang langClasses x of
+    Nothing -> do
+      divClass "pandoc-code nosyntax" $ do
+        el "pre" $ elPandocAttr "code" attr $
+          text x
+    Just lines ->
+      divClass "pandoc-code highlighted" $ do
+        el "pre" $ elPandocAttr "code" attr $ do
+          forM_ lines $ \line -> do
+            forM_ line $ \(tokType, tok) ->
+              elClass "span" (tokenClass tokType) $ text tok
+            text "\n"
   where
+    tokenizeForOneOfLang langs s = do
+      syntax <- msum (fmap (`S.lookupSyntax` S.defaultSyntaxMap) langs)
+      case S.tokenize tokenizerConfig syntax s of
+        Left _ -> Nothing
+        Right lines -> pure lines
+    tokenizerConfig =
+      S.TokenizerConfig
+        { S.syntaxMap = S.defaultSyntaxMap,
+          S.traceOutput = False
+        }
 
--- | Highlight code syntax with Reflex widgets
-formatCode :: DomBuilder t m => S.FormatOptions -> [S.SourceLine] -> m ()
-formatCode _opts slines = forM_ slines $ \tokens -> do
-  forM_ tokens $ \(tokenType, val) ->
-    elClass "span" (tokenClass tokenType) $ text val
-  text "\n"
-  where
-    tokenClass = \case
-      S.KeywordTok -> "kw"
-      S.DataTypeTok -> "dt"
-      S.DecValTok -> "dv"
-      S.BaseNTok -> "bn"
-      S.FloatTok -> "fl"
-      S.CharTok -> "ch"
-      S.StringTok -> "st"
-      S.CommentTok -> "co"
-      S.OtherTok -> "ot"
-      S.AlertTok -> "al"
-      S.FunctionTok -> "fu"
-      S.RegionMarkerTok -> "re"
-      S.ErrorTok -> "er"
-      S.ConstantTok -> "cn"
-      S.SpecialCharTok -> "sc"
-      S.VerbatimStringTok -> "vs"
-      S.SpecialStringTok -> "ss"
-      S.ImportTok -> "im"
-      S.DocumentationTok -> "do"
-      S.AnnotationTok -> "an"
-      S.CommentVarTok -> "cv"
-      S.VariableTok -> "va"
-      S.ControlFlowTok -> "cf"
-      S.OperatorTok -> "op"
-      S.BuiltInTok -> "bu"
-      S.ExtensionTok -> "ex"
-      S.PreprocessorTok -> "pp"
-      S.AttributeTok -> "at"
-      S.InformationTok -> "in"
-      S.WarningTok -> "wa"
-      S.NormalTok -> ""
-
--- | Highlighting style for code blocks
--- TODO: Support theme files: https://pandoc.org/MANUAL.html#syntax-highlighting
-style :: Css
-style = do
-  let bgColor = "#F5FCFF"
-      fgColor = "#268BD2"
-  pre
-    ? backgroundColor bgColor
-  code ? do
-    backgroundColor bgColor
-    color fgColor
-  ".sourcecode" ? do
-    -- Keyword
-    ".kw" ? color "#600095"
-    -- Datatype
-    ".dt" ? color fgColor
-    -- Decimal value, BaseNTok, Float
-    forM_ [".dv", ".bn", ".fl"] $ \sel -> sel ? color "#AE81FF"
-    -- Char
-    ".ch" ? color "#37ad2d"
-    -- String
-    ".st" ? color "#37ad2d"
-    -- Comment
-    ".co" ? color "#7e8e91"
-    -- Other
-    ".ot" ? color "#eb005b"
-    -- Alert
-    ".al" ? (color "#a6e22e" >> fontWeight bold)
-    -- Function
-    ".fu" ? color "#333"
-    -- Region marker
-    ".re" ? pure ()
-    -- Error
-    ".er" ? (color "#e6db74" >> fontWeight bold)
+tokenClass :: S.TokenType -> Text
+tokenClass = \case
+  S.KeywordTok -> "kw"
+  S.DataTypeTok -> "dt"
+  S.DecValTok -> "dv"
+  S.BaseNTok -> "bn"
+  S.FloatTok -> "fl"
+  S.CharTok -> "ch"
+  S.StringTok -> "st"
+  S.CommentTok -> "co"
+  S.OtherTok -> "ot"
+  S.AlertTok -> "al"
+  S.FunctionTok -> "fu"
+  S.RegionMarkerTok -> "re"
+  S.ErrorTok -> "er"
+  S.ConstantTok -> "cn"
+  S.SpecialCharTok -> "sc"
+  S.VerbatimStringTok -> "vs"
+  S.SpecialStringTok -> "ss"
+  S.ImportTok -> "im"
+  S.DocumentationTok -> "do"
+  S.AnnotationTok -> "an"
+  S.CommentVarTok -> "cv"
+  S.VariableTok -> "va"
+  S.ControlFlowTok -> "cf"
+  S.OperatorTok -> "op"
+  S.BuiltInTok -> "bu"
+  S.ExtensionTok -> "ex"
+  S.PreprocessorTok -> "pp"
+  S.AttributeTok -> "at"
+  S.InformationTok -> "in"
+  S.WarningTok -> "wa"
+  S.NormalTok -> ""
