@@ -16,7 +16,7 @@ import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
-import Text.Pandoc.Definition (Block (..), Inline (..), MathType (..), Pandoc (..))
+import Text.Pandoc.Definition
 
 -- | Convert Markdown to HTML
 --
@@ -65,7 +65,20 @@ renderBlock = \case
   Header level attr xs -> elPandocAttr (headerElement level) attr $ do
     mapM_ renderInline xs
   HorizontalRule -> el "hr" blank
-  v@(Table _ _ _ _ _ _) -> notImplemented v
+  Table _attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
+    -- TODO: Rendering is basic, and needs to handle with all attributes of the AST
+    elClass "table" "ui celled table" $ do
+      el "thead" $ do
+        forM_ hrows $ \(Row _ cells) -> do
+          el "tr" $ do
+            forM_ cells $ \(Cell _ _ _ _ blks) ->
+              el "th" $ mapM_ renderBlock blks
+      forM_ tbodys $ \(TableBody _ _ _ rows) ->
+        el "tbody" $ do
+          forM_ rows $ \(Row _ cells) ->
+            el "tr" $ do
+              forM_ cells $ \(Cell _ _ _ _ blks) ->
+                el "td" $ mapM_ renderBlock blks
   Div attr xs ->
     elPandocAttr "div" attr $
       mapM_ renderBlock xs
