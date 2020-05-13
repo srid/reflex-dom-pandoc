@@ -12,16 +12,12 @@ where
 import Control.Monad
 import Data.Bool
 import Data.Maybe
-import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
 import Text.Pandoc.Definition
 
 -- | Convert Markdown to HTML
---
--- NOTE: Not all Markdown features are supported yet.
--- TODO: Implement the notImplemented
 elPandocDoc :: DomBuilder t m => Pandoc -> m ()
 elPandocDoc (Pandoc _meta blocks) = mapM_ renderBlock blocks
 
@@ -44,27 +40,37 @@ renderBlock = \case
   Plain (Str "☒" : Space : is) -> checkboxEl True >> mapM_ renderInline is
   Para (Str "☐" : Space : is) -> checkboxEl False >> mapM_ renderInline is
   Para (Str "☒" : Space : is) -> checkboxEl True >> mapM_ renderInline is
-  Plain xs -> mapM_ renderInline xs
-  Para xs -> el "p" $ mapM_ renderInline xs
-  LineBlock xss -> forM_ xss $ \xs -> do
+  Plain xs ->
     mapM_ renderInline xs
-    text "\n"
-  CodeBlock attr x -> elCodeHighlighted attr x
-  v@(RawBlock _ _) -> notImplemented v
+  Para xs ->
+    el "p" $ mapM_ renderInline xs
+  LineBlock xss ->
+    forM_ xss $ \xs -> do
+      mapM_ renderInline xs
+      text "\n"
+  CodeBlock attr x ->
+    elCodeHighlighted attr x
+  RawBlock _ x ->
+    -- We are not *yet* sure what to do with this. For now, just dump it in pre.
+    elClass "pre" "pandoc-raw" $ text x
   BlockQuote xs -> el "blockquote" $ mapM_ renderBlock xs
-  OrderedList _lattr xss -> el "ol"
-    $
+  OrderedList _lattr xss ->
     -- TODO: Implement list attributes.
-    forM_ xss
-    $ \xs -> el "li" $ mapM_ renderBlock xs
-  BulletList xss -> el "ul" $ forM_ xss $ \xs -> el "li" $ mapM_ renderBlock xs
-  DefinitionList defs -> el "dl" $ forM_ defs $ \(term, descList) -> do
-    el "dt" $ mapM_ renderInline term
-    forM_ descList $ \desc ->
-      el "dd" $ mapM_ renderBlock desc
-  Header level attr xs -> elPandocAttr (headerElement level) attr $ do
-    mapM_ renderInline xs
-  HorizontalRule -> el "hr" blank
+    el "ol" $ do
+      forM_ xss $ \xs -> do
+        el "li" $ mapM_ renderBlock xs
+  BulletList xss ->
+    el "ul" $ forM_ xss $ \xs -> el "li" $ mapM_ renderBlock xs
+  DefinitionList defs ->
+    el "dl" $ forM_ defs $ \(term, descList) -> do
+      el "dt" $ mapM_ renderInline term
+      forM_ descList $ \desc ->
+        el "dd" $ mapM_ renderBlock desc
+  Header level attr xs ->
+    elPandocAttr (headerElement level) attr $ do
+      mapM_ renderInline xs
+  HorizontalRule ->
+    el "hr" blank
   Table _attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
     -- TODO: Rendering is basic, and needs to handle with all attributes of the AST
     elClass "table" "ui celled table" $ do
@@ -106,15 +112,18 @@ renderInline = \case
   Superscript xs -> el "sup" $ mapM_ renderInline xs
   Subscript xs -> el "sub" $ mapM_ renderInline xs
   SmallCaps xs -> el "small" $ mapM_ renderInline xs
-  v@(Quoted _qt _xs) -> notImplemented v
-  v@(Cite _ _) -> notImplemented v
+  Quoted qt xs ->
+    flip inQuotes qt $ mapM_ renderInline xs
+  Cite _ _ -> el "pre" $ text "error[reflex-doc-pandoc]: Pandoc Cite is not handled"
   Code attr x ->
     elPandocAttr "code" attr $
       text x
   Space -> text " "
   SoftBreak -> text " "
   LineBreak -> text "\n"
-  v@(RawInline _ _) -> notImplemented v
+  RawInline _ x ->
+    -- See comment in RawBlock above
+    el "code" $ text x
   Math mathType s ->
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
     case mathType of
@@ -134,8 +143,7 @@ renderInline = \case
   Span attr xs ->
     elPandocAttr "span" attr $
       mapM_ renderInline xs
-
-notImplemented :: (DomBuilder t m, Show a) => a -> m ()
-notImplemented x = do
-  el "strong" $ text "NotImplemented: "
-  el "pre" $ el "code" $ text $ T.pack $ show x
+  where
+    inQuotes w = \case
+      SingleQuote -> text "❛" >> w >> text "❜"
+      DoubleQuote -> text "❝" >> w >> text "❞"
