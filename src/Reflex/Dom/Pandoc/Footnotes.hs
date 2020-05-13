@@ -6,7 +6,7 @@
 module Reflex.Dom.Pandoc.Footnotes where
 
 import Control.Monad.Reader
-import Data.List (nub)
+import Data.List (nub, sortOn)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Text as T
@@ -37,7 +37,7 @@ renderFootnotes :: DomBuilder t m => ([Block] -> m ()) -> Footnotes -> m ()
 renderFootnotes render footnotes = do
   unless (null footnotes) $ do
     elAttr "div" ("id" =: "footnotes") $ do
-      el "ol" $ forM_ (Map.toList footnotes) $ \(Footnote blks, idx) -> do
+      el "ol" $ forM_ (sortOn snd $ Map.toList footnotes) $ \(Footnote blks, idx) -> do
         el "li" $ do
           -- We discard any footnotes inside footnotes
           elAttr "a" ("name" =: ("fn" <> T.pack (show idx))) blank

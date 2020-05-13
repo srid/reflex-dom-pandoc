@@ -1,7 +1,7 @@
 cabal-version: 2.2
 
 name:           reflex-dom-pandoc
-version:        0.1.0.0
+version:        0.2.0.0
 description:    Please see the README on GitHub at <https://github.com/srid/reflex-dom-pandoc>
 homepage:       https://github.com/srid/reflex-dom-pandoc#readme
 bug-reports:    https://github.com/srid/reflex-dom-pandoc/issues
