@@ -23,6 +23,7 @@ library
     , Reflex.Dom.Pandoc.SyntaxHighlighting
   other-modules:
       Reflex.Dom.Pandoc.Util
+    , Reflex.Dom.Pandoc.Footnotes
   hs-source-dirs:
       src
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
