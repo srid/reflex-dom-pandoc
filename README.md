@@ -6,4 +6,4 @@ Not all parts of the Pandoc AST are handled; the following in particular needs t
 
 - [ ] Table is rendered only in basic fashion; but its attributes are not handled.
 - [ ] `Citation` (Pandoc's `Cite` node)
-- [ ] Misc improvements
+- [ ] Raw blocks and inlines

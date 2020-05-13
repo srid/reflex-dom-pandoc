@@ -63,9 +63,11 @@ renderBlock = \case
       renderInlines xs <* text "\n"
   CodeBlock attr x ->
     elCodeHighlighted attr x
-  RawBlock _ x ->
+  RawBlock (Format t) x ->
     -- We are not *yet* sure what to do with this. For now, just dump it in pre.
-    elClass "pre" "pandoc-raw" $ text x
+    -- NOTE: if t==html, we must embed the raw HTML. But this doesn't seem
+    -- possible reflex-dom without ghcjs constraints.
+    elClass "pre" ("pandoc-raw " <> t) $ text x
   BlockQuote xs ->
     el "blockquote" $ renderBlocks xs
   OrderedList _lattr xss ->
