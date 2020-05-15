@@ -3,11 +3,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Reflex.Dom.Pandoc.Document
   ( elPandocDoc,
@@ -23,8 +26,10 @@ import Control.Monad.Reader
 import Control.Monad.Ref
 import Control.Monad.State (modify)
 import Data.Bool
+import Data.Constraint
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8Builder)
 import GHC.IORef
 import Reflex.Dom.Core hiding (Link, Space)
@@ -34,22 +39,34 @@ import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
 import Reflex.Host.Class
 import Text.Pandoc.Definition
 
+class RawHtml m where
+  type RawHtmlConstraints m :: Constraint
+  elRawHtml :: RawHtmlConstraints m => Text -> m ()
+
+instance RawHtml (StaticDomBuilderT t m) where
+  type
+    RawHtmlConstraints (StaticDomBuilderT t m) =
+      ( Reflex t,
+        Monad m,
+        Ref m ~ IORef,
+        MonadIO m,
+        MonadHold t m,
+        MonadFix m,
+        MonadRef m,
+        Adjustable t m,
+        PerformEvent t m,
+        MonadReflexCreateTrigger t m
+      )
+  elRawHtml :: RawHtmlConstraints (StaticDomBuilderT t m) => Text -> StaticDomBuilderT t m ()
+  elRawHtml s =
+    StaticDomBuilderT $ lift $ modify $ (:) $ fmap encodeUtf8Builder $ current $ constDyn s
+
 elPandocInlinesStatic ::
   forall t m.
-  ( Reflex t,
-    Monad m,
-    Ref m ~ IORef,
-    MonadIO m,
-    MonadHold t m,
-    MonadFix m,
-    MonadRef m,
-    Adjustable t m,
-    PerformEvent t m,
-    MonadReflexCreateTrigger t m
-  ) =>
+  (RawHtmlConstraints (StaticDomBuilderT t m)) =>
   [Inline] ->
   StaticDomBuilderT t m ()
-elPandocInlinesStatic = void . flip runReaderT mempty . renderInlines (\f -> ReaderT $ \_ -> rawAsActual f)
+elPandocInlinesStatic = void . flip runReaderT mempty . renderInlines (lift . (\(Format s) -> elRawHtml s))
 
 -- | Render list of Pandoc inlines
 elPandocInlines :: forall t m. DomBuilder t m => [Inline] -> m ()
@@ -73,8 +90,8 @@ renderBlocks renderRaw =
 elPandocDoc :: forall t m. DomBuilder t m => (RenderRawF t m) -> Pandoc -> m ()
 elPandocDoc renderRaw doc@(Pandoc _meta blocks) = do
   let fs = getFootnotes doc
-  flip runReaderT fs $ renderBlocks renderRaw blocks
-  renderFootnotes (sansFootnotes . renderBlocks renderRaw) fs
+  flip runReaderT fs $ renderBlocks (lift . renderRaw) blocks
+  renderFootnotes (sansFootnotes . renderBlocks (lift . renderRaw)) fs
 
 -- | Render the first level of heading
 elPandocHeading1 :: DomBuilder t m => Pandoc -> m ()
