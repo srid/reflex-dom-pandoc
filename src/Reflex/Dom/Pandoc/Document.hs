@@ -1,15 +1,22 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Reflex.Dom.Pandoc.Document
-  ( elPandocDoc,
+  ( elPandoc,
     elPandocInlines,
-    elPandocHeading1,
+    PandocBuilder,
+    PandocRaw (..),
   )
 where
 
@@ -20,34 +27,34 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.Footnotes
+import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
 import Text.Pandoc.Definition
 
+-- | Like `DomBuilder` but with a capability to render pandoc raw content.
+type PandocBuilder t m =
+  ( DomBuilder t m,
+    PandocRaw m,
+    PandocRawConstraints m
+  )
+
 -- | Convert Markdown to HTML
-elPandocDoc :: forall t m. DomBuilder t m => Pandoc -> m ()
-elPandocDoc doc@(Pandoc _meta blocks) = do
+elPandoc :: forall t m. PandocBuilder t m => Pandoc -> m ()
+elPandoc doc@(Pandoc _meta blocks) = do
   let fs = getFootnotes doc
   flip runReaderT fs $ renderBlocks blocks
   renderFootnotes (sansFootnotes . renderBlocks) fs
 
--- | Render the first level of heading
-elPandocHeading1 :: DomBuilder t m => Pandoc -> m ()
-elPandocHeading1 (Pandoc _meta blocks) = forM_ blocks $ \case
-  Header 1 _ xs -> elPandocInlines xs
-  _ -> blank
-
 -- | Render list of Pandoc inlines
---
--- Useful when dealing with metadata values
-elPandocInlines :: DomBuilder t m => [Inline] -> m ()
+elPandocInlines :: forall t m. PandocBuilder t m => [Inline] -> m ()
 elPandocInlines = void . sansFootnotes . renderInlines
 
-renderBlocks :: (MonadReader Footnotes m, DomBuilder t m) => [Block] -> m ()
+renderBlocks :: (MonadReader Footnotes m, PandocBuilder t m) => [Block] -> m ()
 renderBlocks =
-  mapM_ renderBlock
+  mapM_ $ renderBlock
 
-renderBlock :: (MonadReader Footnotes m, DomBuilder t m) => Block -> m ()
+renderBlock :: (MonadReader Footnotes m, PandocBuilder t m) => Block -> m ()
 renderBlock = \case
   -- Pandoc parses github tasklist as this structure.
   Plain (Str "☐" : Space : is) -> checkboxEl False >> renderInlines is
@@ -63,11 +70,8 @@ renderBlock = \case
       renderInlines xs <* text "\n"
   CodeBlock attr x ->
     elCodeHighlighted attr x
-  RawBlock (Format t) x ->
-    -- We are not *yet* sure what to do with this. For now, just dump it in pre.
-    -- NOTE: if t==html, we must embed the raw HTML. But this doesn't seem
-    -- possible reflex-dom without ghcjs constraints.
-    elClass "pre" ("pandoc-raw " <> t) $ text x
+  RawBlock fmt x ->
+    elPandocRaw fmt x
   BlockQuote xs ->
     el "blockquote" $ renderBlocks xs
   OrderedList _lattr xss ->
@@ -119,10 +123,11 @@ renderBlock = \case
           )
           blank
 
-renderInlines :: (MonadReader Footnotes m, DomBuilder t m) => [Inline] -> m ()
-renderInlines = mapM_ renderInline
+renderInlines :: (MonadReader Footnotes m, PandocBuilder t m) => [Inline] -> m ()
+renderInlines =
+  mapM_ $ renderInline
 
-renderInline :: (MonadReader Footnotes m, DomBuilder t m) => Inline -> m ()
+renderInline :: (MonadReader Footnotes m, PandocBuilder t m) => Inline -> m ()
 renderInline = \case
   Str x ->
     text x
@@ -153,9 +158,8 @@ renderInline = \case
     text " "
   LineBreak ->
     text "\n"
-  RawInline _ x ->
-    -- See comment in RawBlock above
-    el "code" $ text x
+  RawInline fmt x ->
+    elPandocRaw fmt x
   Math mathType s ->
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
     case mathType of
