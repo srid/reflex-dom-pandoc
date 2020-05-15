@@ -44,5 +44,7 @@ library
     , skylighting
     , text
     , time
+    , ref-tf
+    , reflex
   default-language: Haskell2010
 
