@@ -19,6 +19,8 @@ source-repository head
 
 library
   exposed-modules:
+      Reflex.Dom.Pandoc
+      Reflex.Dom.Pandoc.PandocRaw
       Reflex.Dom.Pandoc.Document
     , Reflex.Dom.Pandoc.SyntaxHighlighting
   other-modules:

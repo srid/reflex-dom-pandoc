@@ -13,95 +13,46 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Reflex.Dom.Pandoc.Document
-  ( elPandocDoc,
+  ( elPandoc,
     elPandocInlines,
-    elPandocHeading1,
-    rawAsRaw,
     PandocBuilder,
-    RawHtml (..),
+    PandocRaw (..),
   )
 where
 
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.Ref
-import Control.Monad.State (modify)
 import Data.Bool
-import Data.Constraint
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Text (Text)
-import Data.Text.Encoding (encodeUtf8Builder)
-import GHC.IORef
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.Footnotes
+import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
-import Reflex.Host.Class
 import Text.Pandoc.Definition
 
-class RawHtml m where
-  type RawHtmlConstraints m :: Constraint
-  elRawHtml :: RawHtmlConstraints m => Format -> Text -> m ()
-
-instance RawHtml (StaticDomBuilderT t m) where
-  type
-    RawHtmlConstraints (StaticDomBuilderT t m) =
-      ( Reflex t,
-        Monad m,
-        Ref m ~ IORef,
-        MonadIO m,
-        MonadHold t m,
-        MonadFix m,
-        MonadRef m,
-        Adjustable t m,
-        PerformEvent t m,
-        MonadReflexCreateTrigger t m
-      )
-  elRawHtml _f s =
-    StaticDomBuilderT $ lift $ modify $ (:) $ fmap encodeUtf8Builder $ current $ constDyn s
-
-instance RawHtml m => RawHtml (ReaderT a m) where
-  type RawHtmlConstraints (ReaderT a m) = RawHtmlConstraints m
-  elRawHtml f s = ReaderT $ \_ -> elRawHtml f s
-
-instance RawHtml m => RawHtml (PostBuildT t m) where
-  type RawHtmlConstraints (PostBuildT t m) = RawHtmlConstraints m
-  elRawHtml f s = PostBuildT $ ReaderT $ \_ ->
-    elRawHtml f s
-
+-- | Like `DomBuilder` but with a capability to render pandoc raw content.
 type PandocBuilder t m =
   ( DomBuilder t m,
-    RawHtml m,
-    RawHtmlConstraints m
+    PandocRaw m,
+    PandocRawConstraints m
   )
+
+-- | Convert Markdown to HTML
+elPandoc :: forall t m. PandocBuilder t m => Pandoc -> m ()
+elPandoc doc@(Pandoc _meta blocks) = do
+  let fs = getFootnotes doc
+  flip runReaderT fs $ renderBlocks blocks
+  renderFootnotes (sansFootnotes . renderBlocks) fs
 
 -- | Render list of Pandoc inlines
 elPandocInlines :: forall t m. PandocBuilder t m => [Inline] -> m ()
 elPandocInlines = void . sansFootnotes . renderInlines
 
-type RenderRawF t m = PandocBuilder t m => Format -> Text -> m ()
-
-rawAsRaw :: RenderRawF t m
-rawAsRaw (Format f) s =
-  elClass "pre" ("pandoc-raw " <> f) $ text s
-
 renderBlocks :: (MonadReader Footnotes m, PandocBuilder t m) => [Block] -> m ()
 renderBlocks =
   mapM_ $ renderBlock
-
--- | Convert Markdown to HTML
-elPandocDoc :: forall t m. PandocBuilder t m => Pandoc -> m ()
-elPandocDoc doc@(Pandoc _meta blocks) = do
-  let fs = getFootnotes doc
-  flip runReaderT fs $ renderBlocks blocks
-  renderFootnotes (sansFootnotes . renderBlocks) fs
-
--- | Render the first level of heading
-elPandocHeading1 :: PandocBuilder t m => Pandoc -> m ()
-elPandocHeading1 (Pandoc _meta blocks) = forM_ blocks $ \case
-  Header 1 _ xs -> elPandocInlines xs
-  _ -> blank
 
 renderBlock :: (MonadReader Footnotes m, PandocBuilder t m) => Block -> m ()
 renderBlock = \case
@@ -120,7 +71,7 @@ renderBlock = \case
   CodeBlock attr x ->
     elCodeHighlighted attr x
   RawBlock fmt x ->
-    elRawHtml fmt x
+    elPandocRaw fmt x
   BlockQuote xs ->
     el "blockquote" $ renderBlocks xs
   OrderedList _lattr xss ->
@@ -208,7 +159,7 @@ renderInline = \case
   LineBreak ->
     text "\n"
   RawInline fmt x ->
-    elRawHtml fmt x
+    elPandocRaw fmt x
   Math mathType s ->
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
     case mathType of
