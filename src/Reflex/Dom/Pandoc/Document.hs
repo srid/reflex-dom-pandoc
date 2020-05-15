@@ -120,10 +120,6 @@ renderBlock = \case
   CodeBlock attr x ->
     elCodeHighlighted attr x
   RawBlock fmt x ->
-    -- We are not *yet* sure what to do with this. For now, just dump it in pre.
-    -- NOTE: if t==html, we must embed the raw HTML. But this doesn't seem
-    -- possible reflex-dom without ghcjs constraints.
-    -- elClass "pre" ("pandoc-raw " <> t) $ text x
     elRawHtml fmt x
   BlockQuote xs ->
     el "blockquote" $ renderBlocks xs
@@ -211,9 +207,8 @@ renderInline = \case
     text " "
   LineBreak ->
     text "\n"
-  RawInline _ x ->
-    -- See comment in RawBlock above
-    el "code" $ text x
+  RawInline fmt x ->
+    elRawHtml fmt x
   Math mathType s ->
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
     case mathType of
