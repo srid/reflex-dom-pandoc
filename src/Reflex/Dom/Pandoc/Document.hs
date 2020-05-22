@@ -17,6 +17,7 @@ module Reflex.Dom.Pandoc.Document
     elPandocInlines,
     PandocBuilder,
     PandocRaw (..),
+    Config (..),
   )
 where
 
@@ -25,6 +26,7 @@ import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Text (Text)
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
@@ -39,56 +41,60 @@ type PandocBuilder t m =
     PandocRawConstraints m
   )
 
+data Config m = Config
+  { _config_renderLink :: Text -> Text -> m Bool
+  }
+
 -- | Convert Markdown to HTML
-elPandoc :: forall t m. PandocBuilder t m => Pandoc -> m ()
-elPandoc doc@(Pandoc _meta blocks) = do
+elPandoc :: forall t m m1. (PandocBuilder t m, m1 ~ ReaderT Footnotes m) => Config m1 -> Pandoc -> m ()
+elPandoc cfg doc@(Pandoc _meta blocks) = do
   let fs = getFootnotes doc
-  flip runReaderT fs $ renderBlocks blocks
-  renderFootnotes (sansFootnotes . renderBlocks) fs
+  flip runReaderT fs $ renderBlocks cfg blocks
+  renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
-elPandocInlines :: forall t m. PandocBuilder t m => [Inline] -> m ()
-elPandocInlines = void . sansFootnotes . renderInlines
+elPandocInlines :: forall t m m1. (PandocBuilder t m, m1 ~ ReaderT Footnotes m) => Config m1 -> [Inline] -> m ()
+elPandocInlines cfg = void . sansFootnotes . renderInlines cfg
 
-renderBlocks :: (MonadReader Footnotes m, PandocBuilder t m) => [Block] -> m ()
-renderBlocks =
-  mapM_ $ renderBlock
+renderBlocks :: (MonadReader Footnotes m, PandocBuilder t m) => Config m -> [Block] -> m ()
+renderBlocks cfg =
+  mapM_ $ renderBlock cfg
 
-renderBlock :: (MonadReader Footnotes m, PandocBuilder t m) => Block -> m ()
-renderBlock = \case
+renderBlock :: (MonadReader Footnotes m, PandocBuilder t m) => Config m -> Block -> m ()
+renderBlock cfg = \case
   -- Pandoc parses github tasklist as this structure.
-  Plain (Str "☐" : Space : is) -> checkboxEl False >> renderInlines is
-  Plain (Str "☒" : Space : is) -> checkboxEl True >> renderInlines is
-  Para (Str "☐" : Space : is) -> checkboxEl False >> renderInlines is
-  Para (Str "☒" : Space : is) -> checkboxEl True >> renderInlines is
+  Plain (Str "☐" : Space : is) -> checkboxEl False >> renderInlines cfg is
+  Plain (Str "☒" : Space : is) -> checkboxEl True >> renderInlines cfg is
+  Para (Str "☐" : Space : is) -> checkboxEl False >> renderInlines cfg is
+  Para (Str "☒" : Space : is) -> checkboxEl True >> renderInlines cfg is
   Plain xs ->
-    renderInlines xs
+    renderInlines cfg xs
   Para xs ->
-    el "p" $ renderInlines xs
+    el "p" $ renderInlines cfg xs
   LineBlock xss ->
     forM_ xss $ \xs -> do
-      renderInlines xs <* text "\n"
+      renderInlines cfg xs <* text "\n"
   CodeBlock attr x ->
     elCodeHighlighted attr x
   RawBlock fmt x ->
     elPandocRaw fmt x
   BlockQuote xs ->
-    el "blockquote" $ renderBlocks xs
+    el "blockquote" $ renderBlocks cfg xs
   OrderedList _lattr xss ->
     -- TODO: Implement list attributes.
     el "ol" $ do
       forM_ xss $ \xs -> do
-        el "li" $ renderBlocks xs
+        el "li" $ renderBlocks cfg xs
   BulletList xss ->
-    el "ul" $ forM_ xss $ \xs -> el "li" $ renderBlocks xs
+    el "ul" $ forM_ xss $ \xs -> el "li" $ renderBlocks cfg xs
   DefinitionList defs ->
     el "dl" $ forM_ defs $ \(term, descList) -> do
-      el "dt" $ renderInlines term
+      el "dt" $ renderInlines cfg term
       forM_ descList $ \desc ->
-        el "dd" $ renderBlocks desc
+        el "dd" $ renderBlocks cfg desc
   Header level attr xs ->
     elPandocAttr (headerElement level) attr $ do
-      renderInlines xs
+      renderInlines cfg xs
   HorizontalRule ->
     el "hr" blank
   Table _attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
@@ -98,16 +104,16 @@ renderBlock = \case
         forM_ hrows $ \(Row _ cells) -> do
           el "tr" $ do
             forM_ cells $ \(Cell _ _ _ _ blks) ->
-              el "th" $ renderBlocks blks
+              el "th" $ renderBlocks cfg blks
       forM_ tbodys $ \(TableBody _ _ _ rows) ->
         el "tbody" $ do
           forM_ rows $ \(Row _ cells) ->
             el "tr" $ do
               forM_ cells $ \(Cell _ _ _ _ blks) ->
-                el "td" $ renderBlocks blks
+                el "td" $ renderBlocks cfg blks
   Div attr xs ->
     elPandocAttr "div" attr $
-      renderBlocks xs
+      renderBlocks cfg xs
   Null ->
     blank
   where
@@ -123,30 +129,30 @@ renderBlock = \case
           )
           blank
 
-renderInlines :: (MonadReader Footnotes m, PandocBuilder t m) => [Inline] -> m ()
-renderInlines =
-  mapM_ $ renderInline
+renderInlines :: (MonadReader Footnotes m, PandocBuilder t m) => Config m -> [Inline] -> m ()
+renderInlines cfg =
+  mapM_ $ renderInline cfg
 
-renderInline :: (MonadReader Footnotes m, PandocBuilder t m) => Inline -> m ()
-renderInline = \case
+renderInline :: (MonadReader Footnotes m, PandocBuilder t m, PandocBuilder t m) => Config m -> Inline -> m ()
+renderInline cfg = \case
   Str x ->
     text x
   Emph xs ->
-    el "em" $ renderInlines xs
+    el "em" $ renderInlines cfg xs
   Strong xs ->
-    el "strong" $ renderInlines xs
+    el "strong" $ renderInlines cfg xs
   Underline xs ->
-    el "u" $ renderInlines xs
+    el "u" $ renderInlines cfg xs
   Strikeout xs ->
-    el "strike" $ renderInlines xs
+    el "strike" $ renderInlines cfg xs
   Superscript xs ->
-    el "sup" $ renderInlines xs
+    el "sup" $ renderInlines cfg xs
   Subscript xs ->
-    el "sub" $ renderInlines xs
+    el "sub" $ renderInlines cfg xs
   SmallCaps xs ->
-    el "small" $ renderInlines xs
+    el "small" $ renderInlines cfg xs
   Quoted qt xs ->
-    flip inQuotes qt $ renderInlines xs
+    flip inQuotes qt $ renderInlines cfg xs
   Cite _ _ ->
     el "pre" $ text "error[reflex-doc-pandoc]: Pandoc Cite is not handled"
   Code attr x ->
@@ -168,11 +174,17 @@ renderInline = \case
       DisplayMath ->
         elClass "span" "math display" $ text "$$" >> text s >> text "$$"
   Link attr xs (lUrl, lTitle) -> do
-    let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
-    elAttr "a" attr' $ renderInlines xs
+    rendered <- case xs of
+      [Str linkText] -> do
+        _config_renderLink cfg linkText lUrl
+      _ ->
+        pure False
+    unless rendered $ do
+      let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
+      elAttr "a" attr' $ renderInlines cfg xs
   Image attr xs (iUrl, iTitle) -> do
     let attr' = renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
-    elAttr "img" attr' $ renderInlines xs
+    elAttr "img" attr' $ renderInlines cfg xs
   Note xs -> do
     fs :: Footnotes <- ask
     case Map.lookup (Footnote xs) fs of
@@ -180,13 +192,13 @@ renderInline = \case
         -- No footnote in the global map (this means that the user has
         -- defined a footnote inside a footnote); just put the whole thing in
         -- aside.
-        elClass "aside" "footnote-inline" $ renderBlocks xs
+        elClass "aside" "footnote-inline" $ renderBlocks cfg xs
       Just idx ->
         renderFootnoteRef idx
   -- el "aside" $ renderBlocks xs
   Span attr xs ->
     elPandocAttr "span" attr $
-      renderInlines xs
+      renderInlines cfg xs
   where
     inQuotes w = \case
       SingleQuote -> text "❛" >> w <* text "❜"

@@ -22,10 +22,10 @@ library
       Reflex.Dom.Pandoc
       Reflex.Dom.Pandoc.PandocRaw
       Reflex.Dom.Pandoc.Document
-    , Reflex.Dom.Pandoc.SyntaxHighlighting
+      Reflex.Dom.Pandoc.SyntaxHighlighting
+      Reflex.Dom.Pandoc.Footnotes
   other-modules:
       Reflex.Dom.Pandoc.Util
-    , Reflex.Dom.Pandoc.Footnotes
   hs-source-dirs:
       src
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
