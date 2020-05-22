@@ -46,21 +46,21 @@ data Config m = Config
   }
 
 -- | Convert Markdown to HTML
-elPandoc :: forall t m m1. (PandocBuilder t m, m1 ~ ReaderT Footnotes m) => Config m1 -> Pandoc -> m ()
+elPandoc :: forall t m. PandocBuilder t m => Config m -> Pandoc -> m ()
 elPandoc cfg doc@(Pandoc _meta blocks) = do
   let fs = getFootnotes doc
   flip runReaderT fs $ renderBlocks cfg blocks
   renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
-elPandocInlines :: forall t m m1. (PandocBuilder t m, m1 ~ ReaderT Footnotes m) => Config m1 -> [Inline] -> m ()
+elPandocInlines :: PandocBuilder t m => Config m -> [Inline] -> m ()
 elPandocInlines cfg = void . sansFootnotes . renderInlines cfg
 
-renderBlocks :: (MonadReader Footnotes m, PandocBuilder t m) => Config m -> [Block] -> m ()
+renderBlocks :: PandocBuilder t m => Config m -> [Block] -> ReaderT Footnotes m ()
 renderBlocks cfg =
   mapM_ $ renderBlock cfg
 
-renderBlock :: (MonadReader Footnotes m, PandocBuilder t m) => Config m -> Block -> m ()
+renderBlock :: PandocBuilder t m => Config m -> Block -> ReaderT Footnotes m ()
 renderBlock cfg = \case
   -- Pandoc parses github tasklist as this structure.
   Plain (Str "☐" : Space : is) -> checkboxEl False >> renderInlines cfg is
@@ -129,11 +129,11 @@ renderBlock cfg = \case
           )
           blank
 
-renderInlines :: (MonadReader Footnotes m, PandocBuilder t m) => Config m -> [Inline] -> m ()
+renderInlines :: PandocBuilder t m => Config m -> [Inline] -> ReaderT Footnotes m ()
 renderInlines cfg =
   mapM_ $ renderInline cfg
 
-renderInline :: (MonadReader Footnotes m, PandocBuilder t m, PandocBuilder t m) => Config m -> Inline -> m ()
+renderInline :: (PandocBuilder t m) => Config m -> Inline -> ReaderT Footnotes m ()
 renderInline cfg = \case
   Str x ->
     text x
@@ -176,7 +176,7 @@ renderInline cfg = \case
   Link attr xs (lUrl, lTitle) -> do
     rendered <- case xs of
       [Str linkText] -> do
-        _config_renderLink cfg linkText lUrl
+        lift $ _config_renderLink cfg linkText lUrl
       _ ->
         pure False
     unless rendered $ do
