@@ -28,14 +28,13 @@ import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Text (Text)
 import Reflex.Dom.Core hiding (Link, Space)
 import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
+import Reflex.Dom.Pandoc.URILink
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
 import Text.Pandoc.Definition
-import Text.URI (URI, mkURI)
 
 -- | Like `DomBuilder` but with a capability to render pandoc raw content.
 type PandocBuilder t m =
@@ -43,13 +42,6 @@ type PandocBuilder t m =
     PandocRaw m,
     PandocRawConstraints m
   )
-
--- | A Pandoc Link node with a valid URI and a simple (unformatted) link text.
-data URILink = URILink
-  { _uriLink_linkText :: Text,
-    _uriLink_uri :: URI
-  }
-  deriving (Eq, Show, Ord)
 
 data Config m = Config
   { -- | Custom link renderer. Return False if the link is determined to be
@@ -189,19 +181,11 @@ renderInline cfg = \case
         elClass "span" "math inline" $ text $ "\\(" <> s <> "\\)"
       DisplayMath ->
         elClass "span" "math display" $ text "$$" >> text s >> text "$$"
-  Link attr xs (lUrl, lTitle) -> do
-    rendered <- case xs of
-      [Str linkText] -> do
-        case mkURI lUrl of
-          Just uri ->
-            case _config_renderURILink cfg of
-              Just f ->
-                lift $ f $ URILink linkText uri
-              Nothing ->
-                pure False
-          Nothing ->
-            pure False
-      _ ->
+  inline@(Link attr xs (lUrl, lTitle)) -> do
+    rendered <- case ((,) <$> _config_renderURILink cfg <*> uriLinkFromInline inline) of
+      Just (f, uriLink) -> do
+        lift $ f uriLink
+      Nothing ->
         pure False
     unless rendered $ do
       let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)

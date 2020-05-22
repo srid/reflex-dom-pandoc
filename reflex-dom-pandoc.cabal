@@ -22,9 +22,10 @@ library
       Reflex.Dom.Pandoc
       Reflex.Dom.Pandoc.PandocRaw
       Reflex.Dom.Pandoc.Document
+      Reflex.Dom.Pandoc.URILink
       Reflex.Dom.Pandoc.SyntaxHighlighting
-      Reflex.Dom.Pandoc.Footnotes
   other-modules:
+      Reflex.Dom.Pandoc.Footnotes
       Reflex.Dom.Pandoc.Util
   hs-source-dirs:
       src
