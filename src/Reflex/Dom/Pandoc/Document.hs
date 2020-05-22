@@ -17,6 +17,7 @@ module Reflex.Dom.Pandoc.Document
     elPandocInlines,
     PandocBuilder,
     PandocRaw (..),
+    URILink (..),
     Config (..),
   )
 where
@@ -42,8 +43,17 @@ type PandocBuilder t m =
     PandocRawConstraints m
   )
 
+-- | A Pandoc Link node with a valid URI and a simple (unformatted) link text.
+data URILink = URILink
+  { _uriLink_linkText :: Text,
+    _uriLink_uri :: URI
+  }
+  deriving (Eq, Show, Ord)
+
 data Config m = Config
-  { _config_renderURILink :: Maybe (Text -> URI -> m Bool)
+  { -- | Custom link renderer. Return False if the link is determined to be
+    -- handled by reflex-dom-pandoc
+    _config_renderURILink :: Maybe (URILink -> m Bool)
   }
 
 -- | Convert Markdown to HTML
@@ -181,7 +191,7 @@ renderInline cfg = \case
           Just uri ->
             case _config_renderURILink cfg of
               Just f ->
-                lift $ f linkText uri
+                lift $ f $ URILink linkText uri
               Nothing ->
                 pure False
           Nothing ->
