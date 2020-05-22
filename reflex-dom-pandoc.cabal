@@ -49,5 +49,6 @@ library
     , ref-tf
     , reflex
     , constraints
+    , modern-uri
   default-language: Haskell2010
 

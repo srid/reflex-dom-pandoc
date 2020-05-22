@@ -33,6 +33,7 @@ import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
 import Text.Pandoc.Definition
+import Text.URI (URI, mkURI)
 
 -- | Like `DomBuilder` but with a capability to render pandoc raw content.
 type PandocBuilder t m =
@@ -42,7 +43,7 @@ type PandocBuilder t m =
   )
 
 data Config m = Config
-  { _config_renderLink :: Text -> Text -> m Bool
+  { _config_renderURILink :: Maybe (Text -> URI -> m Bool)
   }
 
 -- | Convert Markdown to HTML
@@ -176,7 +177,15 @@ renderInline cfg = \case
   Link attr xs (lUrl, lTitle) -> do
     rendered <- case xs of
       [Str linkText] -> do
-        lift $ _config_renderLink cfg linkText lUrl
+        case mkURI lUrl of
+          Just uri ->
+            case _config_renderURILink cfg of
+              Just f ->
+                lift $ f linkText uri
+              Nothing ->
+                pure False
+          Nothing ->
+            pure False
       _ ->
         pure False
     unless rendered $ do
