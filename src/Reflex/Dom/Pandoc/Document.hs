@@ -15,6 +15,7 @@
 module Reflex.Dom.Pandoc.Document
   ( elPandoc,
     elPandocInlines,
+    elPandocBlocks,
     PandocBuilder,
     PandocRaw (..),
     URILink (..),
@@ -64,8 +65,12 @@ elPandoc cfg doc@(Pandoc _meta blocks) = do
   renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
-elPandocInlines :: PandocBuilder t m => Config m -> [Inline] -> m ()
-elPandocInlines cfg = void . sansFootnotes . renderInlines cfg
+elPandocInlines :: PandocBuilder t m => [Inline] -> m ()
+elPandocInlines = void . sansFootnotes . renderInlines (Config Nothing)
+
+-- | Render list of Pandoc Blocks
+elPandocBlocks :: PandocBuilder t m => [Block] -> m ()
+elPandocBlocks = void . sansFootnotes . renderBlocks (Config Nothing)
 
 renderBlocks :: PandocBuilder t m => Config m -> [Block] -> ReaderT Footnotes m ()
 renderBlocks cfg =
