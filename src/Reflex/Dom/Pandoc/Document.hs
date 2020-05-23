@@ -20,6 +20,7 @@ module Reflex.Dom.Pandoc.Document
     PandocRaw (..),
     URILink (..),
     Config (..),
+    defaultConfig,
   )
 where
 
@@ -28,7 +29,8 @@ import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
 import Data.Maybe
-import Reflex.Dom.Core hiding (Link, Space)
+import Data.Traversable (for)
+import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
@@ -43,32 +45,39 @@ type PandocBuilder t m =
     PandocRawConstraints m
   )
 
-data Config m = Config
-  { -- | Custom link renderer. Return False if the link is determined to be
-    -- handled by reflex-dom-pandoc
-    _config_renderURILink :: Maybe (URILink -> m Bool)
+data Config t m a = Config
+  { -- | Custom link renderer.
+    _config_renderURILink :: m a -> URILink -> m a
   }
 
+defaultConfig :: Monad m => Config t m ()
+defaultConfig =
+  Config $ \f _ -> f >> pure ()
+
 -- | Convert Markdown to HTML
-elPandoc :: forall t m. PandocBuilder t m => Config m -> Pandoc -> m ()
+elPandoc :: forall t m a. (PandocBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
 elPandoc cfg doc@(Pandoc _meta blocks) = do
   let fs = getFootnotes doc
-  flip runReaderT fs $ renderBlocks cfg blocks
-  renderFootnotes (sansFootnotes . renderBlocks cfg) fs
+  x <- flip runReaderT fs $ renderBlocks cfg blocks
+  fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
 elPandocInlines :: PandocBuilder t m => [Inline] -> m ()
-elPandocInlines = void . sansFootnotes . renderInlines (Config Nothing)
+elPandocInlines = void . sansFootnotes . renderInlines defaultConfig
 
 -- | Render list of Pandoc Blocks
 elPandocBlocks :: PandocBuilder t m => [Block] -> m ()
-elPandocBlocks = void . sansFootnotes . renderBlocks (Config Nothing)
+elPandocBlocks = void . sansFootnotes . renderBlocks defaultConfig
 
-renderBlocks :: PandocBuilder t m => Config m -> [Block] -> ReaderT Footnotes m ()
+mapAccum :: (Monoid b, Applicative f) => (a -> f b) -> [a] -> f b
+mapAccum f xs =
+  fmap mconcat $ for xs f
+
+renderBlocks :: (PandocBuilder t m, Monoid a) => Config t m a -> [Block] -> ReaderT Footnotes m a
 renderBlocks cfg =
-  mapM_ $ renderBlock cfg
+  mapAccum $ renderBlock cfg
 
-renderBlock :: PandocBuilder t m => Config m -> Block -> ReaderT Footnotes m ()
+renderBlock :: (PandocBuilder t m, Monoid a) => Config t m a -> Block -> ReaderT Footnotes m a
 renderBlock cfg = \case
   -- Pandoc parses github tasklist as this structure.
   Plain (Str "☐" : Space : is) -> checkboxEl False >> renderInlines cfg is
@@ -80,50 +89,50 @@ renderBlock cfg = \case
   Para xs ->
     el "p" $ renderInlines cfg xs
   LineBlock xss ->
-    forM_ xss $ \xs -> do
+    flip mapAccum xss $ \xs -> do
       renderInlines cfg xs <* text "\n"
   CodeBlock attr x ->
-    elCodeHighlighted attr x
+    elCodeHighlighted attr x >> pure mempty
   RawBlock fmt x ->
-    elPandocRaw fmt x
+    elPandocRaw fmt x >> pure mempty
   BlockQuote xs ->
     el "blockquote" $ renderBlocks cfg xs
   OrderedList _lattr xss ->
     -- TODO: Implement list attributes.
     el "ol" $ do
-      forM_ xss $ \xs -> do
+      flip mapAccum xss $ \xs -> do
         el "li" $ renderBlocks cfg xs
   BulletList xss ->
-    el "ul" $ forM_ xss $ \xs -> el "li" $ renderBlocks cfg xs
+    el "ul" $ flip mapAccum xss $ \xs -> el "li" $ renderBlocks cfg xs
   DefinitionList defs ->
-    el "dl" $ forM_ defs $ \(term, descList) -> do
-      el "dt" $ renderInlines cfg term
-      forM_ descList $ \desc ->
+    el "dl" $ flip mapAccum defs $ \(term, descList) -> do
+      x <- el "dt" $ renderInlines cfg term
+      fmap (x <>) $ flip mapAccum descList $ \desc ->
         el "dd" $ renderBlocks cfg desc
   Header level attr xs ->
     elPandocAttr (headerElement level) attr $ do
       renderInlines cfg xs
   HorizontalRule ->
-    el "hr" blank
+    el "hr" blank >> pure mempty
   Table _attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
     -- TODO: Rendering is basic, and needs to handle with all attributes of the AST
     elClass "table" "ui celled table" $ do
-      el "thead" $ do
-        forM_ hrows $ \(Row _ cells) -> do
+      x <- el "thead" $ do
+        flip mapAccum hrows $ \(Row _ cells) -> do
           el "tr" $ do
-            forM_ cells $ \(Cell _ _ _ _ blks) ->
+            flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
               el "th" $ renderBlocks cfg blks
-      forM_ tbodys $ \(TableBody _ _ _ rows) ->
+      fmap (x <>) $ flip mapAccum tbodys $ \(TableBody _ _ _ rows) ->
         el "tbody" $ do
-          forM_ rows $ \(Row _ cells) ->
+          flip mapAccum rows $ \(Row _ cells) ->
             el "tr" $ do
-              forM_ cells $ \(Cell _ _ _ _ blks) ->
+              flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
                 el "td" $ renderBlocks cfg blks
   Div attr xs ->
     elPandocAttr "div" attr $
       renderBlocks cfg xs
   Null ->
-    blank
+    blank >> pure mempty
   where
     checkboxEl checked =
       void $
@@ -137,14 +146,14 @@ renderBlock cfg = \case
           )
           blank
 
-renderInlines :: PandocBuilder t m => Config m -> [Inline] -> ReaderT Footnotes m ()
+renderInlines :: (PandocBuilder t m, Monoid a) => Config t m a -> [Inline] -> ReaderT Footnotes m a
 renderInlines cfg =
-  mapM_ $ renderInline cfg
+  mapAccum $ renderInline cfg
 
-renderInline :: (PandocBuilder t m) => Config m -> Inline -> ReaderT Footnotes m ()
+renderInline :: (PandocBuilder t m, Monoid a) => Config t m a -> Inline -> ReaderT Footnotes m a
 renderInline cfg = \case
   Str x ->
-    text x
+    text x >> pure mempty
   Emph xs ->
     el "em" $ renderInlines cfg xs
   Strong xs ->
@@ -161,35 +170,39 @@ renderInline cfg = \case
     el "small" $ renderInlines cfg xs
   Quoted qt xs ->
     flip inQuotes qt $ renderInlines cfg xs
-  Cite _ _ ->
+  Cite _ _ -> do
     el "pre" $ text "error[reflex-doc-pandoc]: Pandoc Cite is not handled"
+    pure mempty
   Code attr x ->
-    elPandocAttr "code" attr $
+    elPandocAttr "code" attr $ do
       text x
+      pure mempty
   Space ->
-    text " "
+    text " " >> pure mempty
   SoftBreak ->
-    text " "
+    text " " >> pure mempty
   LineBreak ->
-    text "\n"
+    text "\n" >> pure mempty
   RawInline fmt x ->
-    elPandocRaw fmt x
-  Math mathType s ->
+    elPandocRaw fmt x >> pure mempty
+  Math mathType s -> do
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
     case mathType of
       InlineMath ->
         elClass "span" "math inline" $ text $ "\\(" <> s <> "\\)"
       DisplayMath ->
         elClass "span" "math display" $ text "$$" >> text s >> text "$$"
+    pure mempty
   inline@(Link attr xs (lUrl, lTitle)) -> do
-    rendered <- case ((,) <$> _config_renderURILink cfg <*> uriLinkFromInline inline) of
-      Just (f, uriLink) -> do
-        lift $ f uriLink
+    let defaultRender = do
+          let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
+          elAttr "a" attr' $ renderInlines cfg xs
+    case uriLinkFromInline inline of
+      Just uriLink -> do
+        fns <- ask
+        lift $ _config_renderURILink cfg (flip runReaderT fns defaultRender) uriLink
       Nothing ->
-        pure False
-    unless rendered $ do
-      let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
-      elAttr "a" attr' $ renderInlines cfg xs
+        defaultRender
   Image attr xs (iUrl, iTitle) -> do
     let attr' = renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ renderInlines cfg xs
@@ -202,7 +215,7 @@ renderInline cfg = \case
         -- aside.
         elClass "aside" "footnote-inline" $ renderBlocks cfg xs
       Just idx ->
-        renderFootnoteRef idx
+        renderFootnoteRef idx >> pure mempty
   -- el "aside" $ renderBlocks xs
   Span attr xs ->
     elPandocAttr "span" attr $
