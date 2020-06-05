@@ -21,18 +21,9 @@ elCodeHighlighted ::
   Text ->
   m ()
 elCodeHighlighted attr@(_, langClasses, _) x = do
-  case tokenizeForOneOfLang langClasses x of
-    Nothing -> do
-      divClass "pandoc-code nosyntax" $ do
-        el "pre" $ elPandocAttr "code" attr $
-          text x
-    Just lines ->
-      divClass "pandoc-code highlighted" $ do
-        el "pre" $ elPandocAttr "code" attr $ do
-          forM_ lines $ \line -> do
-            forM_ line $ \(tokType, tok) ->
-              elClass "span" (tokenClass tokType) $ text tok
-            text "\n"
+  divClass "pandoc-code nosyntax" $ do
+    el "pre" $ elPandocAttr "code" attr $
+      text x
   where
     tokenizeForOneOfLang langs s = do
       syntax <- msum (fmap (`S.lookupSyntax` S.defaultSyntaxMap) langs)
