@@ -1,6 +1,8 @@
 # reflex-dom-pandoc
 
-Render Pandoc documents in reflex-dom.
+Render Pandoc documents to HTML using reflex-dom, in your reflex or Obelisk apps.
+
+## Todo
 
 Nearly all parts of the AST are rendered, except the following:
 
