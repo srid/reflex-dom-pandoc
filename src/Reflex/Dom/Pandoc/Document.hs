@@ -57,9 +57,10 @@ defaultConfig =
 -- | Convert Markdown to HTML
 elPandoc :: forall t m a. (PandocBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
 elPandoc cfg doc@(Pandoc _meta blocks) = do
-  let fs = getFootnotes doc
-  x <- flip runReaderT fs $ renderBlocks cfg blocks
-  fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
+  divClass "pandoc" $ do
+    let fs = getFootnotes doc
+    x <- flip runReaderT fs $ renderBlocks cfg blocks
+    fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
 elPandocInlines :: PandocBuilder t m => [Inline] -> m ()
@@ -143,7 +144,7 @@ renderBlock cfg = \case
                 ]
             )
           invisibleChar = "\8206"
-      divClass "ui checkbox" $ do
+      divClass "ui disabled fitted checkbox" $ do
         void $ elAttr "input" attrs blank
         -- Semantic UI requires a non-empty label element
         el "label" $ text invisibleChar
