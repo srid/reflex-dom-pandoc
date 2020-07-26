@@ -134,17 +134,19 @@ renderBlock cfg = \case
   Null ->
     blank >> pure mempty
   where
-    checkboxEl checked =
-      void $
-        elAttr
-          "input"
-          ( mconcat $ catMaybes $
-              [ Just $ "type" =: "checkbox",
-                Just $ "disabled" =: "True",
-                bool Nothing (Just $ "checked" =: "True") checked
-              ]
-          )
-          blank
+    checkboxEl checked = do
+      let attrs =
+            ( mconcat $ catMaybes $
+                [ Just $ "type" =: "checkbox",
+                  Just $ "disabled" =: "True",
+                  bool Nothing (Just $ "checked" =: "True") checked
+                ]
+            )
+          invisibleChar = "\8206"
+      divClass "ui checkbox" $ do
+        void $ elAttr "input" attrs blank
+        -- Semantic UI requires a non-empty label element
+        el "label" $ text invisibleChar
 
 renderInlines :: (PandocBuilder t m, Monoid a) => Config t m a -> [Inline] -> ReaderT Footnotes m a
 renderInlines cfg =
