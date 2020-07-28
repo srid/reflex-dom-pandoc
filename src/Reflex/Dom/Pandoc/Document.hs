@@ -225,5 +225,5 @@ renderInline cfg = \case
       renderInlines cfg xs
   where
     inQuotes w = \case
-      SingleQuote -> text "❛" >> w <* text "❜"
-      DoubleQuote -> text "❝" >> w <* text "❞"
+      SingleQuote -> text "‘" >> w <* text "’"
+      DoubleQuote -> text "“" >> w <* text "”"
