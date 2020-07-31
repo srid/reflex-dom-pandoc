@@ -46,7 +46,7 @@ library
     , pandoc-types >= 0.21
     , reflex-dom-core
     , safe
-    , skylighting
+    , skylighting >= 0.9
     , text
     , time
     , ref-tf
