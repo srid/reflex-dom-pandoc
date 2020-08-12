@@ -29,6 +29,7 @@ import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
 import Data.Maybe
+import qualified Data.Text as T (pack)
 import Data.Traversable (for)
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
@@ -98,9 +99,9 @@ renderBlock cfg = \case
     elPandocRaw fmt x >> pure mempty
   BlockQuote xs ->
     el "blockquote" $ renderBlocks cfg xs
-  OrderedList _lattr xss ->
-    -- TODO: Implement list attributes.
-    el "ol" $ do
+  OrderedList (idx, style, _delim) xss ->
+    -- delimStyle is not supported in HTML or in Semantic UI
+    elAttr "ol" (listStyle style <> startFrom idx) $ do
       flip mapAccum xss $ \xs -> do
         el "li" $ renderBlocks cfg xs
   BulletList xss ->
@@ -148,6 +149,13 @@ renderBlock cfg = \case
         void $ elAttr "input" attrs blank
         -- Semantic UI requires a non-empty label element
         el "label" $ text invisibleChar
+    startFrom idx = bool mempty ("start" =: (T.pack $ show idx)) (idx /= 1)
+    listStyle = \case
+      LowerRoman -> "type" =: "i"
+      UpperRoman -> "type" =: "I"
+      LowerAlpha -> "type" =: "a"
+      UpperAlpha -> "type" =: "A"
+      _ -> mempty
 
 renderInlines :: (PandocBuilder t m, Monoid a) => Config t m a -> [Inline] -> ReaderT Footnotes m a
 renderInlines cfg =
