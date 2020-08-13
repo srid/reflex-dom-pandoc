@@ -29,7 +29,7 @@ import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
 import Data.Maybe
-import qualified Data.Text as T (pack)
+import qualified Data.Text as T
 import Data.Traversable (for)
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
