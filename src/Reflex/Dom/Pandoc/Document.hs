@@ -36,7 +36,7 @@ import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.URILink
-import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr)
+import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, memptyIfTrue, renderAttr)
 import Text.Pandoc.Definition
 
 -- | Like `DomBuilder` but with a capability to render pandoc raw content.
@@ -138,10 +138,10 @@ renderBlock cfg = \case
   where
     checkboxEl checked = do
       let attrs =
-            ( mconcat $ catMaybes $
-                [ Just $ "type" =: "checkbox",
-                  Just $ "disabled" =: "True",
-                  bool Nothing (Just $ "checked" =: "True") checked
+            ( mconcat $
+                [ "type" =: "checkbox",
+                  "disabled" =: "True",
+                  bool mempty ("checked" =: "True") checked
                 ]
             )
           invisibleChar = "\8206"
@@ -206,7 +206,7 @@ renderInline cfg = \case
     pure mempty
   inline@(Link attr xs (lUrl, lTitle)) -> do
     let defaultRender = do
-          let attr' = renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
+          let attr' = renderAttr attr <> ("href" =: lUrl <> title lTitle)
           elAttr "a" attr' $ renderInlines cfg xs
     case uriLinkFromInline inline of
       Just uriLink -> do
@@ -215,7 +215,7 @@ renderInline cfg = \case
       Nothing ->
         defaultRender
   Image attr xs (iUrl, iTitle) -> do
-    let attr' = renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
+    let attr' = renderAttr attr <> ("src" =: iUrl <> title iTitle)
     elAttr "img" attr' $ renderInlines cfg xs
   Note xs -> do
     fs :: Footnotes <- ask
@@ -232,6 +232,7 @@ renderInline cfg = \case
     elPandocAttr "span" attr $
       renderInlines cfg xs
   where
+    title t = memptyIfTrue (T.null t) ("title" =: t)
     inQuotes w = \case
       SingleQuote -> text "‘" >> w <* text "’"
       DoubleQuote -> text "“" >> w <* text "”"
