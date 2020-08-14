@@ -6,6 +6,8 @@
 - Add a wrapping div with class "pandoc" for user styling of elements
 - Make unicode quote characters less heavy
 - Require pure Haskell skylighting
+- Remove empty HTML attributes (#6)
+- Fancy lists (#7)
 
 ## 0.2.0.0
 
