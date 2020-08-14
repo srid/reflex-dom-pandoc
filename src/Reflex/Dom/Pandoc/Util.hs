@@ -18,7 +18,10 @@ elPandocAttr ::
   -- | Child widget
   m a ->
   m a
-elPandocAttr name = elAttr name . renderAttr
+elPandocAttr name = elAttr name . sansEmptyAttrs . renderAttr
+
+sansEmptyAttrs :: Map k Text -> Map k Text
+sansEmptyAttrs = Map.filter (not . T.null)
 
 renderAttr ::
   -- | Pandoc attribute object. TODO: Use a sensible type.
@@ -26,7 +29,7 @@ renderAttr ::
   Map Text Text
 renderAttr (identifier, classes, attrs) =
   "id" =: identifier
-    <> "class" =: (T.unwords classes)
+    <> "class" =: T.unwords classes
     <> Map.fromList attrs
 
 addClass ::
