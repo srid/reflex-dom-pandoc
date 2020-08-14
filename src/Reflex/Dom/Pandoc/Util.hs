@@ -18,22 +18,19 @@ elPandocAttr ::
   -- | Child widget
   m a ->
   m a
-elPandocAttr name = elAttr name . renderAttr
+elPandocAttr name = elAttr name . sansEmptyAttrs . renderAttr
 
--- | memptyIfTrue p m = if p then mempty else m
-memptyIfTrue :: Monoid m => Bool -> m -> m
-memptyIfTrue p m = if p then mempty else m
-{-# INLINE memptyIfTrue #-}
+sansEmptyAttrs :: Map k Text -> Map k Text
+sansEmptyAttrs = Map.filter (not . T.null)
 
 renderAttr ::
   -- | Pandoc attribute object. TODO: Use a sensible type.
   Attr ->
   Map Text Text
 renderAttr (identifier, classes, attrs) =
-  Map.filter (not . T.null) $
-    "id" =: identifier
-      <> "class" =: T.unwords classes
-      <> Map.fromList attrs
+  "id" =: identifier
+    <> "class" =: T.unwords classes
+    <> Map.fromList attrs
 
 addClass ::
   -- | The class to add

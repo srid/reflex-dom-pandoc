@@ -28,7 +28,6 @@ import Control.Monad
 import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
-import Data.Maybe
 import qualified Data.Text as T
 import Data.Traversable (for)
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
@@ -36,7 +35,7 @@ import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.URILink
-import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, memptyIfTrue, renderAttr)
+import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, sansEmptyAttrs, renderAttr)
 import Text.Pandoc.Definition
 
 -- | Like `DomBuilder` but with a capability to render pandoc raw content.
@@ -206,7 +205,7 @@ renderInline cfg = \case
     pure mempty
   inline@(Link attr xs (lUrl, lTitle)) -> do
     let defaultRender = do
-          let attr' = renderAttr attr <> ("href" =: lUrl <> title lTitle)
+          let attr' = sansEmptyAttrs $ renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
           elAttr "a" attr' $ renderInlines cfg xs
     case uriLinkFromInline inline of
       Just uriLink -> do
@@ -215,7 +214,7 @@ renderInline cfg = \case
       Nothing ->
         defaultRender
   Image attr xs (iUrl, iTitle) -> do
-    let attr' = renderAttr attr <> ("src" =: iUrl <> title iTitle)
+    let attr' = sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ renderInlines cfg xs
   Note xs -> do
     fs :: Footnotes <- ask
@@ -232,7 +231,6 @@ renderInline cfg = \case
     elPandocAttr "span" attr $
       renderInlines cfg xs
   where
-    title t = memptyIfTrue (T.null t) ("title" =: t)
     inQuotes w = \case
       SingleQuote -> text "‘" >> w <* text "’"
       DoubleQuote -> text "“" >> w <* text "”"
