@@ -35,7 +35,7 @@ import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.URILink
-import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, sansEmptyAttrs, renderAttr)
+import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr, sansEmptyAttrs)
 import Text.Pandoc.Definition
 
 -- | Like `DomBuilder` but with a capability to render pandoc raw content.
@@ -106,10 +106,12 @@ renderBlock cfg = \case
   BulletList xss ->
     el "ul" $ flip mapAccum xss $ \xs -> el "li" $ renderBlocks cfg xs
   DefinitionList defs ->
-    el "dl" $ flip mapAccum defs $ \(term, descList) -> do
-      x <- el "dt" $ renderInlines cfg term
-      fmap (x <>) $ flip mapAccum descList $ \desc ->
-        el "dd" $ renderBlocks cfg desc
+    el "dl" $
+      flip mapAccum defs $ \(term, descList) -> do
+        x <- el "dt" $ renderInlines cfg term
+        fmap (x <>) $
+          flip mapAccum descList $ \desc ->
+            el "dd" $ renderBlocks cfg desc
   Header level attr xs ->
     elPandocAttr (headerElement level) attr $ do
       renderInlines cfg xs
@@ -123,12 +125,13 @@ renderBlock cfg = \case
           el "tr" $ do
             flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
               el "th" $ renderBlocks cfg blks
-      fmap (x <>) $ flip mapAccum tbodys $ \(TableBody _ _ _ rows) ->
-        el "tbody" $ do
-          flip mapAccum rows $ \(Row _ cells) ->
-            el "tr" $ do
-              flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
-                el "td" $ renderBlocks cfg blks
+      fmap (x <>) $
+        flip mapAccum tbodys $ \(TableBody _ _ _ rows) ->
+          el "tbody" $ do
+            flip mapAccum rows $ \(Row _ cells) ->
+              el "tr" $ do
+                flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
+                  el "td" $ renderBlocks cfg blks
   Div attr xs ->
     elPandocAttr "div" attr $
       renderBlocks cfg xs

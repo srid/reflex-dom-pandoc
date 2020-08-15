@@ -67,5 +67,6 @@ instance PandocRaw m => PandocRaw (ReaderT a m) where
 
 instance PandocRaw m => PandocRaw (PostBuildT t m) where
   type PandocRawConstraints (PostBuildT t m) = PandocRawConstraints m
-  elPandocRaw f s = PostBuildT $ ReaderT $ \_ ->
-    elPandocRaw f s
+  elPandocRaw f s = PostBuildT $
+    ReaderT $ \_ ->
+      elPandocRaw f s
