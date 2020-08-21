@@ -194,7 +194,7 @@ renderInline cfg = \case
   SoftBreak ->
     text " " >> pure mempty
   LineBreak ->
-    text "\n" >> pure mempty
+    el "br" blank >> pure mempty
   RawInline fmt x ->
     elPandocRaw fmt x >> pure mempty
   Math mathType s -> do

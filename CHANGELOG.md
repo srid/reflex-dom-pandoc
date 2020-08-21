@@ -8,6 +8,7 @@
 - Require pure Haskell skylighting
 - Remove empty HTML attributes (#6)
 - Fancy lists (#7)
+- Make `LineBreak` generate `<br>`
 
 ## 0.2.0.0
 
