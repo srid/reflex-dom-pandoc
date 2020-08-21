@@ -19,12 +19,18 @@ newtype Footnote = Footnote {unFootnote :: [Block]}
 
 type Footnotes = Map Footnote Int
 
-getFootnotes :: Pandoc -> Footnotes
-getFootnotes =
+-- | Make a footnote from the Pandoc `Note` node's block elements
+mkFootnote :: [Block] -> Footnote
+mkFootnote blocks =
+  Footnote blocks
+
+-- | Traverse the Pandoc document accumulating any footnotes
+queryFootnotes :: Pandoc -> Footnotes
+queryFootnotes =
   buildFootnotes
     . query
       ( \case
-          Note s -> [Footnote s]
+          Note xs -> [mkFootnote xs]
           _ -> []
       )
   where

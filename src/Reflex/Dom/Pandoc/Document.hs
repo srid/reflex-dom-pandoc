@@ -29,7 +29,6 @@ import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
 import qualified Data.Text as T
-import Data.Traversable (for)
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.PandocRaw
@@ -58,7 +57,7 @@ defaultConfig =
 elPandoc :: forall t m a. (PandocBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
 elPandoc cfg doc@(Pandoc _meta blocks) = do
   divClass "pandoc" $ do
-    let fs = getFootnotes doc
+    let fs = queryFootnotes doc
     x <- flip runReaderT fs $ renderBlocks cfg blocks
     fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
@@ -71,8 +70,8 @@ elPandocBlocks :: PandocBuilder t m => [Block] -> m ()
 elPandocBlocks = void . sansFootnotes . renderBlocks defaultConfig
 
 mapAccum :: (Monoid b, Applicative f) => (a -> f b) -> [a] -> f b
-mapAccum f xs =
-  fmap mconcat $ for xs f
+mapAccum f =
+  fmap mconcat . traverse f
 
 renderBlocks :: (PandocBuilder t m, Monoid a) => Config t m a -> [Block] -> ReaderT Footnotes m a
 renderBlocks cfg =
@@ -221,7 +220,7 @@ renderInline cfg = \case
     elAttr "img" attr' $ renderInlines cfg xs
   Note xs -> do
     fs :: Footnotes <- ask
-    case Map.lookup (Footnote xs) fs of
+    case Map.lookup (mkFootnote xs) fs of
       Nothing ->
         -- No footnote in the global map (this means that the user has
         -- defined a footnote inside a footnote); just put the whole thing in
@@ -229,7 +228,6 @@ renderInline cfg = \case
         elClass "aside" "footnote-inline" $ renderBlocks cfg xs
       Just idx ->
         renderFootnoteRef idx >> pure mempty
-  -- el "aside" $ renderBlocks xs
   Span attr xs ->
     elPandocAttr "span" attr $
       renderInlines cfg xs
