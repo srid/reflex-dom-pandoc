@@ -1,26 +1,28 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- TODO: Rename
 module Reflex.Dom.Pandoc.URILink where
 
 import Data.Maybe
-import Data.Text (Text)
 import Text.Pandoc.Definition
 import qualified Text.Pandoc.Walk as W
 import Text.URI (URI, mkURI)
 
--- | A Pandoc Link node with a valid URI and a simple (unformatted) link text.
+-- | A Pandoc Link node with a valid URI
 data URILink = URILink
-  { _uriLink_linkText :: Text,
-    _uriLink_uri :: URI
+  { _uriLink_inner :: [Inline],
+    _uriLink_uri :: URI,
+    _uriLink_autolink :: Bool
   }
   deriving (Eq, Show, Ord)
 
 uriLinkFromInline :: Inline -> Maybe URILink
 uriLinkFromInline = \case
-  Link _attr [Str linkText] (url, _title) -> do
+  Link _attr inner (url, _title) -> do
     uri <- mkURI url
-    pure $ URILink linkText uri
+    let autolink = inner == [Str url]
+    pure $ URILink inner uri autolink
   _ ->
     Nothing
 
