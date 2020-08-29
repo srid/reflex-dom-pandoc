@@ -3,24 +3,28 @@
 
 module Reflex.Dom.Pandoc.URILink where
 
+import Control.Monad (guard)
 import Data.Maybe
-import Data.Text (Text)
 import Text.Pandoc.Definition
 import qualified Text.Pandoc.Walk as W
 import Text.URI (URI, mkURI)
 
--- | A Pandoc Link node with a valid URI and a simple (unformatted) link text.
+-- | A Pandoc Link node with a valid URI
 data URILink = URILink
-  { _uriLink_linkText :: Text,
+  { -- | This is set to Nothing for autolinks
+    _uriLink_inner :: Maybe [Inline],
     _uriLink_uri :: URI
   }
   deriving (Eq, Show, Ord)
 
 uriLinkFromInline :: Inline -> Maybe URILink
 uriLinkFromInline = \case
-  Link _attr [Str linkText] (url, _title) -> do
+  Link _attr inlines (url, _title) -> do
     uri <- mkURI url
-    pure $ URILink linkText uri
+    let inner = do
+          guard $ inlines /= [Str url]
+          pure inlines
+    pure $ URILink inner uri
   _ ->
     Nothing
 
