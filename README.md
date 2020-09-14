@@ -11,4 +11,4 @@ Nearly all parts of the AST are rendered, except the following:
 
 ## Hacking
 
-To develop in reflex-dom-pandoc, follow neuron's README: https://github.com/srid/neuron#developing-on-reflex-dom-pandoc
+To develop in reflex-dom-pandoc, follow neuron's README: <https://github.com/srid/neuron/blob/master/CONTRIBUTING.md#hacking-on-pandocs-html-layout>
