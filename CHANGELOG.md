@@ -9,6 +9,7 @@
 - Remove empty HTML attributes (#6)
 - Fancy lists (#7)
 - Make `LineBreak` generate `<br>`
+- Footnote misalignment on Firefox (#9)
 
 ## 0.2.0.0
 
