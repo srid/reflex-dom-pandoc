@@ -49,9 +49,7 @@ renderFootnotes render footnotes = do
         el "ol" $
           fmap mconcat $
             forM (sortOn snd $ Map.toList footnotes) $ \(Footnote blks, idx) -> do
-              el "li" $ do
-                -- We discard any footnotes inside footnotes
-                elAttr "a" ("name" =: ("fn" <> T.pack (show idx))) blank
+              elAttr "li" ("id" =: ("fn" <> T.pack (show idx))) $ do
                 x <- render blks
                 -- FIXME: This should appear inline if the footnote is a single paragraph.
                 elAttr "a" ("href" =: ("#fnref" <> T.pack (show idx))) $ text "↩︎"
@@ -60,7 +58,7 @@ renderFootnotes render footnotes = do
 renderFootnoteRef :: DomBuilder t m => Int -> m ()
 renderFootnoteRef idx = do
   elClass "sup" "footnote-ref" $ do
-    elAttr "a" ("name" =: ("fnref" <> T.pack (show idx)) <> "href" =: ("#fn" <> T.pack (show idx))) $ do
+    elAttr "a" ("id" =: ("fnref" <> T.pack (show idx)) <> "href" =: ("#fn" <> T.pack (show idx))) $ do
       text $ T.pack $ show idx
 
 sansFootnotes :: DomBuilder t m => ReaderT Footnotes m a -> m a
