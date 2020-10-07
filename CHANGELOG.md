@@ -1,5 +1,9 @@
 # Change Log for reflex-dom-pandoc
 
+## 0.6.0.0
+
+- Hide footnote references from search engine results (#10)
+
 ## 0.4.0.0
 
 - Fix task list checkbox styling margins by using Semantic UI checkbox.
