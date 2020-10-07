@@ -8,6 +8,7 @@ module Reflex.Dom.Pandoc.Footnotes where
 import Control.Monad.Reader
 import Data.List (nub, sortOn)
 import Data.Map (Map)
+import Data.Text (Text)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space)
@@ -57,9 +58,15 @@ renderFootnotes render footnotes = do
 
 renderFootnoteRef :: DomBuilder t m => Int -> m ()
 renderFootnoteRef idx = do
-  elClass "sup" "footnote-ref" $ do
-    elAttr "a" ("id" =: ("fnref" <> T.pack (show idx)) <> "href" =: ("#fn" <> T.pack (show idx))) $ do
-      text $ T.pack $ show idx
+  elNoSnippetSpan Map.empty $ do
+    elClass "sup" "footnote-ref" $ do
+      elAttr "a" ("id" =: ("fnref" <> T.pack (show idx)) <> "href" =: ("#fn" <> T.pack (show idx))) $ do
+        text $ T.pack $ show idx
+  where
+    -- Prevent this element from appearing in Google search results
+    -- https://developers.google.com/search/reference/robots_meta_tag#data-nosnippet-attr
+    elNoSnippetSpan :: DomBuilder t m => Map Text Text -> m () -> m ()
+    elNoSnippetSpan attrs = elAttr "span" ("data-nosnippet" =: "" <> attrs)
 
 sansFootnotes :: DomBuilder t m => ReaderT Footnotes m a -> m a
 sansFootnotes = flip runReaderT mempty
