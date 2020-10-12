@@ -1,5 +1,9 @@
 # Change Log for reflex-dom-pandoc
 
+## Unreleased
+
+- Drop `URILink` and simplify link render configuration (#11)
+
 ## 0.6.0.0
 
 - Hide footnote references from search engine results (#10)
