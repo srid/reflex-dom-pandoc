@@ -31,7 +31,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
-import Reflex.Dom.Pandoc.PandocRaw
+import Reflex.Dom.Pandoc.PandocRaw (PandocRaw (..))
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr, sansEmptyAttrs)
 import Text.Pandoc.Definition
@@ -45,7 +45,13 @@ type PandocBuilder t m =
 
 data Config t m a = Config
   { -- | Custom link renderer.
-    _config_renderLink :: m a -> Text -> m a -> m a
+    _config_renderLink ::
+      m a ->
+      -- Link URL
+      Text ->
+      -- Inner body of the link. Nothing if same as URL (i.e., an autolink)
+      Maybe [Inline] ->
+      m a
   }
 
 defaultConfig :: Monad m => Config t m ()
@@ -209,12 +215,15 @@ renderInline cfg = \case
           let attr' = sansEmptyAttrs $ renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
           elAttr "a" attr' $ renderInlines cfg xs
     fns <- ask
+    let minner = do
+          guard $ xs /= [Str lUrl]
+          pure xs
     lift $
       _config_renderLink
         cfg
         (flip runReaderT fns defaultRender)
         lUrl
-        (flip runReaderT fns $ renderInlines cfg xs)
+        minner
   Image attr xs (iUrl, iTitle) -> do
     let attr' = sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ renderInlines cfg xs
