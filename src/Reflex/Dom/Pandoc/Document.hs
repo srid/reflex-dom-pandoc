@@ -18,7 +18,6 @@ module Reflex.Dom.Pandoc.Document
     elPandocBlocks,
     PandocBuilder,
     PandocRaw (..),
-    URILink (..),
     Config (..),
     defaultConfig,
   )
@@ -28,12 +27,12 @@ import Control.Monad
 import Control.Monad.Reader
 import Data.Bool
 import qualified Data.Map as Map
+import Data.Text (Text)
 import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
-import Reflex.Dom.Pandoc.PandocRaw
+import Reflex.Dom.Pandoc.PandocRaw (PandocRaw (..))
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
-import Reflex.Dom.Pandoc.URILink
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr, sansEmptyAttrs)
 import Text.Pandoc.Definition
 
@@ -46,12 +45,18 @@ type PandocBuilder t m =
 
 data Config t m a = Config
   { -- | Custom link renderer.
-    _config_renderURILink :: m a -> URILink -> m a
+    _config_renderLink ::
+      m a ->
+      -- Link URL
+      Text ->
+      -- Inner body of the link. Nothing if same as URL (i.e., an autolink)
+      Maybe [Inline] ->
+      m a
   }
 
 defaultConfig :: Monad m => Config t m ()
 defaultConfig =
-  Config $ \f _ -> f >> pure ()
+  Config $ \f _ _ -> f >> pure ()
 
 -- | Convert Markdown to HTML
 elPandoc :: forall t m a. (PandocBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
@@ -205,16 +210,20 @@ renderInline cfg = \case
       DisplayMath ->
         elClass "span" "math display" $ text "$$" >> text s >> text "$$"
     pure mempty
-  inline@(Link attr xs (lUrl, lTitle)) -> do
+  Link attr xs (lUrl, lTitle) -> do
     let defaultRender = do
           let attr' = sansEmptyAttrs $ renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
           elAttr "a" attr' $ renderInlines cfg xs
-    case uriLinkFromInline inline of
-      Just uriLink -> do
-        fns <- ask
-        lift $ _config_renderURILink cfg (flip runReaderT fns defaultRender) uriLink
-      Nothing ->
-        defaultRender
+    fns <- ask
+    let minner = do
+          guard $ xs /= [Str lUrl]
+          pure xs
+    lift $
+      _config_renderLink
+        cfg
+        (flip runReaderT fns defaultRender)
+        lUrl
+        minner
   Image attr xs (iUrl, iTitle) -> do
     let attr' = sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
     elAttr "img" attr' $ renderInlines cfg xs
