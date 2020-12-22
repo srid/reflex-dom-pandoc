@@ -17,13 +17,13 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT (..), lift)
 import Control.Monad.Ref (MonadRef, Ref)
 import Control.Monad.State (modify)
-import Data.Constraint
+import Data.Constraint (Constraint)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8Builder)
-import GHC.IORef
+import GHC.IORef (IORef)
 import Reflex.Dom.Core hiding (Link, Space)
-import Reflex.Host.Class
-import Text.Pandoc.Definition
+import Reflex.Host.Class (MonadReflexCreateTrigger)
+import Text.Pandoc.Definition (Format (..))
 
 -- | Class to define how to render pandoc raw nodes
 class PandocRaw m where
@@ -70,3 +70,7 @@ instance PandocRaw m => PandocRaw (PostBuildT t m) where
   elPandocRaw f s = PostBuildT $
     ReaderT $ \_ ->
       elPandocRaw f s
+
+instance PandocRaw m => PandocRaw (HydratableT m) where
+  type PandocRawConstraints (HydratableT m) = PandocRawConstraints m
+  elPandocRaw f s = HydratableT $ elPandocRaw f s
