@@ -4,4 +4,3 @@ module Reflex.Dom.Pandoc
 where
 
 import Reflex.Dom.Pandoc.Document as X
-import Reflex.Dom.Pandoc.PandocRaw as X
