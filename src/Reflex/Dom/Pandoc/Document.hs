@@ -23,6 +23,7 @@ import Control.Monad (guard, void)
 import Control.Monad.Reader
 import Data.Bool (bool)
 import qualified Data.Map as Map
+import Data.Map.Strict (Map)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
@@ -42,6 +43,8 @@ data Config t m a = Config
       m a ->
       -- Link URL
       Text ->
+      -- Link attributes, including "title"
+      Map Text Text ->
       -- Inner body of the link. Nothing if same as URL (i.e., an autolink)
       Maybe [Inline] ->
       m a,
@@ -54,7 +57,7 @@ data Config t m a = Config
 defaultConfig :: DomBuilder t m => Config t m ()
 defaultConfig =
   Config
-    (\f _ _ -> f >> pure ())
+    (\f _ _ _ -> f >> pure ())
     ( \case
         PandocRawNode_Block (Format fmt) s ->
           divClass ("pandoc-raw " <> fmt) $ text s
@@ -148,18 +151,17 @@ renderBlock cfg = \case
   where
     checkboxEl checked = do
       let attrs =
-            ( mconcat $
-                [ "type" =: "checkbox",
-                  "disabled" =: "True",
-                  bool mempty ("checked" =: "True") checked
-                ]
-            )
+            mconcat $
+              [ "type" =: "checkbox",
+                "disabled" =: "True",
+                bool mempty ("checked" =: "True") checked
+              ]
           invisibleChar = "\8206"
       divClass "ui disabled fitted checkbox" $ do
         void $ elAttr "input" attrs blank
         -- Semantic UI requires a non-empty label element
         el "label" $ text invisibleChar
-    startFrom idx = bool mempty ("start" =: (T.pack $ show idx)) (idx /= 1)
+    startFrom idx = bool mempty ("start" =: T.pack (show idx)) (idx /= 1)
     listStyle = \case
       LowerRoman -> "type" =: "i"
       UpperRoman -> "type" =: "I"
@@ -215,8 +217,9 @@ renderInline cfg = \case
         elClass "span" "math display" $ text "$$" >> text s >> text "$$"
     pure mempty
   Link attr xs (lUrl, lTitle) -> do
-    let defaultRender = do
-          let attr' = sansEmptyAttrs $ renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
+    let attrMap = renderAttr attr
+        defaultRender = do
+          let attr' = sansEmptyAttrs $ attrMap <> "href" =: lUrl <> "title" =: lTitle
           elAttr "a" attr' $ renderInlines cfg xs
     fns <- ask
     let minner = do
@@ -225,8 +228,9 @@ renderInline cfg = \case
     lift $
       _config_renderLink
         cfg
-        (flip runReaderT fns defaultRender)
+        (runReaderT defaultRender fns)
         lUrl
+        (attrMap <> "title" =: lTitle)
         minner
   Image attr xs (iUrl, iTitle) -> do
     let attr' = sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
