@@ -130,7 +130,7 @@ renderBlock cfg = \case
     el "hr" blank >> pure mempty
   Table _attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
     -- TODO: Rendering is basic, and needs to handle with all attributes of the AST
-    elClass "table" "ui celled table" $ do
+    el "table" $ do
       x <- el "thead" $ do
         flip mapAccum hrows $ \(Row _ cells) -> do
           el "tr" $ do
@@ -156,11 +156,7 @@ renderBlock cfg = \case
                 "disabled" =: "True",
                 bool mempty ("checked" =: "True") checked
               ]
-          invisibleChar = "\8206"
-      divClass "ui disabled fitted checkbox" $ do
-        void $ elAttr "input" attrs blank
-        -- Semantic UI requires a non-empty label element
-        el "label" $ text invisibleChar
+      void $ elAttr "input" attrs blank
     startFrom idx = bool mempty ("start" =: T.pack (show idx)) (idx /= 1)
     listStyle = \case
       LowerRoman -> "type" =: "i"

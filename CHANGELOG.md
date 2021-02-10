@@ -3,8 +3,9 @@
 ## Unreleased
 
 - Drop `URILink` and simplify link render configuration (#11)
-- Get rid of `PandocRaw` complexity (pass raw node render as a function)
-- Pass attributes to link renderer
+- Get rid of `PandocRaw` complexity (pass raw node render as a function) (#13)
+- Pass attributes to link renderer (#13)
+- Remove hardcoded semantic UI CSS classes on `<table>` and `<input>` (checkbox) elements
 
 ## 0.6.0.0
 
@@ -24,4 +25,3 @@
 ## 0.2.0.0
 
 Initial public release
-
