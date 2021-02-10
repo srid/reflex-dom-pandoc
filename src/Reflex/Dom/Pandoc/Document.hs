@@ -2,8 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -16,32 +14,28 @@ module Reflex.Dom.Pandoc.Document
   ( elPandoc,
     elPandocInlines,
     elPandocBlocks,
-    PandocBuilder,
-    PandocRaw (..),
     Config (..),
     defaultConfig,
   )
 where
 
-import Control.Monad
+import Control.Monad (guard, void)
 import Control.Monad.Reader
-import Data.Bool
+import Data.Bool (bool)
 import qualified Data.Map as Map
+import Data.Map.Strict (Map)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
-import Reflex.Dom.Pandoc.PandocRaw (PandocRaw (..))
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr, sansEmptyAttrs)
 import Text.Pandoc.Definition
 
--- | Like `DomBuilder` but with a capability to render pandoc raw content.
-type PandocBuilder t m =
-  ( DomBuilder t m,
-    PandocRaw m,
-    PandocRawConstraints m
-  )
+data PandocRawNode
+  = PandocRawNode_Block Format Text
+  | PandocRawNode_Inline Format Text
+  deriving (Eq)
 
 data Config t m a = Config
   { -- | Custom link renderer.
@@ -49,17 +43,30 @@ data Config t m a = Config
       m a ->
       -- Link URL
       Text ->
+      -- Link attributes, including "title"
+      Map Text Text ->
       -- Inner body of the link. Nothing if same as URL (i.e., an autolink)
       Maybe [Inline] ->
+      m a,
+    -- | How to render raw nodes
+    _config_renderRaw ::
+      PandocRawNode ->
       m a
   }
 
-defaultConfig :: Monad m => Config t m ()
+defaultConfig :: DomBuilder t m => Config t m ()
 defaultConfig =
-  Config $ \f _ _ -> f >> pure ()
+  Config
+    (\f _ _ _ -> f >> pure ())
+    ( \case
+        PandocRawNode_Block (Format fmt) s ->
+          divClass ("pandoc-raw " <> fmt) $ text s
+        PandocRawNode_Inline (Format fmt) s ->
+          elClass "span" ("pandoc-raw " <> fmt) $ text s
+    )
 
 -- | Convert Markdown to HTML
-elPandoc :: forall t m a. (PandocBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
+elPandoc :: forall t m a. (DomBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
 elPandoc cfg doc@(Pandoc _meta blocks) = do
   divClass "pandoc" $ do
     let fs = queryFootnotes doc
@@ -67,22 +74,22 @@ elPandoc cfg doc@(Pandoc _meta blocks) = do
     fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
-elPandocInlines :: PandocBuilder t m => [Inline] -> m ()
+elPandocInlines :: DomBuilder t m => [Inline] -> m ()
 elPandocInlines = void . sansFootnotes . renderInlines defaultConfig
 
 -- | Render list of Pandoc Blocks
-elPandocBlocks :: PandocBuilder t m => [Block] -> m ()
+elPandocBlocks :: DomBuilder t m => [Block] -> m ()
 elPandocBlocks = void . sansFootnotes . renderBlocks defaultConfig
 
 mapAccum :: (Monoid b, Applicative f) => (a -> f b) -> [a] -> f b
 mapAccum f =
   fmap mconcat . traverse f
 
-renderBlocks :: (PandocBuilder t m, Monoid a) => Config t m a -> [Block] -> ReaderT Footnotes m a
+renderBlocks :: (DomBuilder t m, Monoid a) => Config t m a -> [Block] -> ReaderT Footnotes m a
 renderBlocks cfg =
   mapAccum $ renderBlock cfg
 
-renderBlock :: (PandocBuilder t m, Monoid a) => Config t m a -> Block -> ReaderT Footnotes m a
+renderBlock :: (DomBuilder t m, Monoid a) => Config t m a -> Block -> ReaderT Footnotes m a
 renderBlock cfg = \case
   -- Pandoc parses github tasklist as this structure.
   Plain (Str "☐" : Space : is) -> checkboxEl False >> renderInlines cfg is
@@ -99,7 +106,7 @@ renderBlock cfg = \case
   CodeBlock attr x ->
     elCodeHighlighted attr x >> pure mempty
   RawBlock fmt x ->
-    elPandocRaw fmt x >> pure mempty
+    lift $ _config_renderRaw cfg (PandocRawNode_Block fmt x) >> pure mempty
   BlockQuote xs ->
     el "blockquote" $ renderBlocks cfg xs
   OrderedList (idx, style, _delim) xss ->
@@ -144,18 +151,17 @@ renderBlock cfg = \case
   where
     checkboxEl checked = do
       let attrs =
-            ( mconcat $
-                [ "type" =: "checkbox",
-                  "disabled" =: "True",
-                  bool mempty ("checked" =: "True") checked
-                ]
-            )
+            mconcat $
+              [ "type" =: "checkbox",
+                "disabled" =: "True",
+                bool mempty ("checked" =: "True") checked
+              ]
           invisibleChar = "\8206"
       divClass "ui disabled fitted checkbox" $ do
         void $ elAttr "input" attrs blank
         -- Semantic UI requires a non-empty label element
         el "label" $ text invisibleChar
-    startFrom idx = bool mempty ("start" =: (T.pack $ show idx)) (idx /= 1)
+    startFrom idx = bool mempty ("start" =: T.pack (show idx)) (idx /= 1)
     listStyle = \case
       LowerRoman -> "type" =: "i"
       UpperRoman -> "type" =: "I"
@@ -163,11 +169,11 @@ renderBlock cfg = \case
       UpperAlpha -> "type" =: "A"
       _ -> mempty
 
-renderInlines :: (PandocBuilder t m, Monoid a) => Config t m a -> [Inline] -> ReaderT Footnotes m a
+renderInlines :: (DomBuilder t m, Monoid a) => Config t m a -> [Inline] -> ReaderT Footnotes m a
 renderInlines cfg =
   mapAccum $ renderInline cfg
 
-renderInline :: (PandocBuilder t m, Monoid a) => Config t m a -> Inline -> ReaderT Footnotes m a
+renderInline :: (DomBuilder t m, Monoid a) => Config t m a -> Inline -> ReaderT Footnotes m a
 renderInline cfg = \case
   Str x ->
     text x >> pure mempty
@@ -201,7 +207,7 @@ renderInline cfg = \case
   LineBreak ->
     el "br" blank >> pure mempty
   RawInline fmt x ->
-    elPandocRaw fmt x >> pure mempty
+    lift $ _config_renderRaw cfg (PandocRawNode_Inline fmt x) >> pure mempty
   Math mathType s -> do
     -- http://docs.mathjax.org/en/latest/basic/mathematics.html#tex-and-latex-input
     case mathType of
@@ -211,8 +217,9 @@ renderInline cfg = \case
         elClass "span" "math display" $ text "$$" >> text s >> text "$$"
     pure mempty
   Link attr xs (lUrl, lTitle) -> do
-    let defaultRender = do
-          let attr' = sansEmptyAttrs $ renderAttr attr <> ("href" =: lUrl <> "title" =: lTitle)
+    let attrMap = renderAttr attr
+        defaultRender = do
+          let attr' = sansEmptyAttrs $ attrMap <> "href" =: lUrl <> "title" =: lTitle
           elAttr "a" attr' $ renderInlines cfg xs
     fns <- ask
     let minner = do
@@ -221,8 +228,9 @@ renderInline cfg = \case
     lift $
       _config_renderLink
         cfg
-        (flip runReaderT fns defaultRender)
+        (runReaderT defaultRender fns)
         lUrl
+        (attrMap <> "title" =: lTitle)
         minner
   Image attr xs (iUrl, iTitle) -> do
     let attr' = sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)

@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Drop `URILink` and simplify link render configuration (#11)
+- Get rid of `PandocRaw` complexity (pass raw node render as a function)
+- Pass attributes to link renderer
 
 ## 0.6.0.0
 
