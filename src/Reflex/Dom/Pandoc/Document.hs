@@ -68,10 +68,9 @@ defaultConfig =
 -- | Convert Markdown to HTML
 elPandoc :: forall t m a. (DomBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
 elPandoc cfg doc@(Pandoc _meta blocks) = do
-  divClass "pandoc" $ do
-    let fs = queryFootnotes doc
-    x <- flip runReaderT fs $ renderBlocks cfg blocks
-    fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
+  let fs = queryFootnotes doc
+  x <- flip runReaderT fs $ renderBlocks cfg blocks
+  fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
 elPandocInlines :: DomBuilder t m => [Inline] -> m ()

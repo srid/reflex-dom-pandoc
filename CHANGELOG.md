@@ -6,6 +6,7 @@
 - Get rid of `PandocRaw` complexity (pass raw node render as a function) (#13)
 - Pass attributes to link renderer (#13)
 - Remove hardcoded semantic UI CSS classes on `<table>` and `<input>` (checkbox) elements
+- Remove the wrapper "div"
 
 ## 0.6.0.0
 
