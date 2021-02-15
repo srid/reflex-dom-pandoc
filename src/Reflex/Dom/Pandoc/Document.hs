@@ -15,6 +15,7 @@ module Reflex.Dom.Pandoc.Document
     elPandocInlines,
     elPandocBlocks,
     Config (..),
+    PandocRawNode (..),
     defaultConfig,
   )
 where
@@ -35,7 +36,7 @@ import Text.Pandoc.Definition
 data PandocRawNode
   = PandocRawNode_Block Format Text
   | PandocRawNode_Inline Format Text
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data Config t m a = Config
   { -- | Custom link renderer.
