@@ -231,9 +231,9 @@ renderInline cfg = \case
         lUrl
         (attrMap <> "title" =: lTitle)
         minner
-  Image attr xs (iUrl, iTitle) -> do
-    let attr' = sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle)
-    elAttr "img" attr' $ renderInlines cfg xs
+  Image attr xs target -> do
+    let attr' = imageAttrs attr xs target
+    elAttr "img" attr' blank >> pure mempty
   Note xs -> do
     fs :: Footnotes <- ask
     case Map.lookup (mkFootnote xs) fs of
@@ -251,3 +251,31 @@ renderInline cfg = \case
     inQuotes w = \case
       SingleQuote -> text "‘" >> w <* text "’"
       DoubleQuote -> text "“" >> w <* text "”"
+
+    -- Img alt text is represented as [Inline]
+    imageAttrs attr xs (iUrl, iTitle) =
+      sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle <> "alt" =: inlinesToAlt xs)
+
+    inlinesToAlt = T.concat . map inlineToText
+
+    inlineToText = \case
+      Str t -> t
+      Emph xs -> inlinesToAlt xs
+      Underline xs -> inlinesToAlt xs
+      Strong xs -> inlinesToAlt xs
+      Strikeout xs -> inlinesToAlt xs
+      Subscript xs -> inlinesToAlt xs
+      SmallCaps xs -> inlinesToAlt xs
+      Quoted _ xs -> inlinesToAlt xs
+      Cite _ xs -> inlinesToAlt xs
+      Code _ t -> t
+      Space -> " "
+      SoftBreak -> " "
+      LineBreak -> " "
+      Math _ t -> t
+      RawInline _ t -> t
+      Link _ xs _ -> inlinesToAlt xs
+      Image _ xs _ -> inlinesToAlt xs
+      Note _ -> ""
+      Span _ xs -> inlinesToAlt xs
+      _ -> ""
