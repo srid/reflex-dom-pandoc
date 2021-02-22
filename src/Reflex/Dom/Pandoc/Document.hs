@@ -33,14 +33,10 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
+import Reflex.Dom.Pandoc.Raw (PandocRawNode (..), elPandocRawNodeSafe)
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
 import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr, sansEmptyAttrs)
 import Text.Pandoc.Definition
-
-data PandocRawNode
-  = PandocRawNode_Block Format Text
-  | PandocRawNode_Inline Format Text
-  deriving (Eq, Show)
 
 data Config t m a = Config
   { -- | Custom link renderer.
@@ -70,19 +66,14 @@ defaultConfig =
   Config
     (\f _ _ _ -> f >> pure ())
     (\f _ _ -> f)
-    ( \case
-        PandocRawNode_Block (Format fmt) s ->
-          divClass ("pandoc-raw " <> fmt) $ text s
-        PandocRawNode_Inline (Format fmt) s ->
-          elClass "span" ("pandoc-raw " <> fmt) $ text s
-    )
+    elPandocRawNodeSafe
 
 -- | Convert Markdown to HTML
 elPandoc :: forall t m a. (DomBuilder t m, Monoid a) => Config t m a -> Pandoc -> m a
 elPandoc cfg doc@(Pandoc _meta blocks) = do
   let fs = queryFootnotes doc
   x <- flip runReaderT fs $ renderBlocks cfg blocks
-  fmap (x <>) $ renderFootnotes (sansFootnotes . renderBlocks cfg) fs
+  (x <>) <$> renderFootnotes (sansFootnotes . renderBlocks cfg) fs
 
 -- | Render list of Pandoc inlines
 elPandocInlines :: DomBuilder t m => [Inline] -> m ()

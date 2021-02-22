@@ -4,6 +4,7 @@
 
 - Drop `URILink` and simplify link render configuration (#11)
 - Get rid of `PandocRaw` complexity (pass raw node render as a function) (#13)
+  - But leave it available as an exposed module for explicit user use.
 - Pass attributes to link renderer (#13)
 - Remove hardcoded semantic UI CSS classes on `<table>` and `<input>` (checkbox) elements
 - Remove the wrapper "div"
