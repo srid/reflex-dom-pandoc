@@ -9,6 +9,7 @@
 - Remove hardcoded semantic UI CSS classes on `<table>` and `<input>` (checkbox) elements
 - Remove the wrapper "div"
 - Allow configuring how to render code blocks (eg: without syntax highlighting)
+- Render img element alt attribute (#12)
 
 ## 0.6.0.0
 

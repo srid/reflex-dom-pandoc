@@ -35,7 +35,7 @@ import Reflex.Dom.Core hiding (Link, Space, mapAccum)
 import Reflex.Dom.Pandoc.Footnotes
 import Reflex.Dom.Pandoc.Raw (PandocRawNode (..), elPandocRawNodeSafe)
 import Reflex.Dom.Pandoc.SyntaxHighlighting (elCodeHighlighted)
-import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, renderAttr, sansEmptyAttrs)
+import Reflex.Dom.Pandoc.Util (elPandocAttr, headerElement, plainify, renderAttr, sansEmptyAttrs)
 import Text.Pandoc.Definition
 
 data Config t m a = Config
@@ -232,8 +232,7 @@ renderInline cfg = \case
         (attrMap <> "title" =: lTitle)
         minner
   Image attr xs target -> do
-    let attr' = imageAttrs attr xs target
-    elAttr "img" attr' blank >> pure mempty
+    elAttr "img" (imageAttrs attr xs target) blank >> pure mempty
   Note xs -> do
     fs :: Footnotes <- ask
     case Map.lookup (mkFootnote xs) fs of
@@ -251,31 +250,6 @@ renderInline cfg = \case
     inQuotes w = \case
       SingleQuote -> text "‘" >> w <* text "’"
       DoubleQuote -> text "“" >> w <* text "”"
-
-    -- Img alt text is represented as [Inline]
-    imageAttrs attr xs (iUrl, iTitle) =
-      sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle <> "alt" =: inlinesToAlt xs)
-
-    inlinesToAlt = T.concat . map inlineToText
-
-    inlineToText = \case
-      Str t -> t
-      Emph xs -> inlinesToAlt xs
-      Underline xs -> inlinesToAlt xs
-      Strong xs -> inlinesToAlt xs
-      Strikeout xs -> inlinesToAlt xs
-      Subscript xs -> inlinesToAlt xs
-      SmallCaps xs -> inlinesToAlt xs
-      Quoted _ xs -> inlinesToAlt xs
-      Cite _ xs -> inlinesToAlt xs
-      Code _ t -> t
-      Space -> " "
-      SoftBreak -> " "
-      LineBreak -> " "
-      Math _ t -> t
-      RawInline _ t -> t
-      Link _ xs _ -> inlinesToAlt xs
-      Image _ xs _ -> inlinesToAlt xs
-      Note _ -> ""
-      Span _ xs -> inlinesToAlt xs
-      _ -> ""
+    -- Pandoc stores Img's alt text as [Inline]
+    imageAttrs attr imgInlines (iUrl, iTitle) =
+      sansEmptyAttrs $ renderAttr attr <> ("src" =: iUrl <> "title" =: iTitle <> "alt" =: plainify imgInlines)

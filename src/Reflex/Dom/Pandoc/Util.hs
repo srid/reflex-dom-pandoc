@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Reflex.Dom.Pandoc.Util where
@@ -7,7 +8,9 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as T
 import Reflex.Dom.Core
+import qualified Text.Pandoc.Builder as B
 import Text.Pandoc.Definition (Attr)
+import qualified Text.Pandoc.Walk as W
 
 elPandocAttr ::
   DomBuilder t m =>
@@ -49,3 +52,17 @@ headerElement level = case level of
   5 -> "h5"
   6 -> "h6"
   _ -> error "bad header level"
+
+-- | Convert Pandoc AST inlines to raw text.
+plainify :: [B.Inline] -> Text
+plainify = W.query $ \case
+  B.Str x -> x
+  B.Code _attr x -> x
+  B.Space -> " "
+  B.SoftBreak -> " "
+  B.LineBreak -> " "
+  B.RawInline _fmt s -> s
+  B.Math _mathTyp s -> s
+  -- Ignore the rest of AST nodes, as they are recursively defined in terms of
+  -- `Inline` which `W.query` will traverse again.
+  _ -> ""
