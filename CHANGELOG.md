@@ -7,6 +7,7 @@
 - Pass attributes to link renderer (#13)
 - Remove hardcoded semantic UI CSS classes on `<table>` and `<input>` (checkbox) elements
 - Remove the wrapper "div"
+- Allow configuring how to render code blocks (eg: without syntax highlighting)
 
 ## 0.6.0.0
 

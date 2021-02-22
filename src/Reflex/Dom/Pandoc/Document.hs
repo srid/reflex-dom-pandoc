@@ -22,6 +22,10 @@ where
 
 import Control.Monad (guard, void)
 import Control.Monad.Reader
+  ( MonadReader (ask),
+    MonadTrans (lift),
+    ReaderT (runReaderT),
+  )
 import Data.Bool (bool)
 import qualified Data.Map as Map
 import Data.Map.Strict (Map)
@@ -49,6 +53,12 @@ data Config t m a = Config
       -- Inner body of the link. Nothing if same as URL (i.e., an autolink)
       Maybe [Inline] ->
       m a,
+    -- | How to render code blocks
+    _config_renderCode ::
+      m () ->
+      Attr ->
+      Text ->
+      m (),
     -- | How to render raw nodes
     _config_renderRaw ::
       PandocRawNode ->
@@ -59,6 +69,7 @@ defaultConfig :: DomBuilder t m => Config t m ()
 defaultConfig =
   Config
     (\f _ _ _ -> f >> pure ())
+    (\f _ _ -> f)
     ( \case
         PandocRawNode_Block (Format fmt) s ->
           divClass ("pandoc-raw " <> fmt) $ text s
@@ -103,8 +114,9 @@ renderBlock cfg = \case
   LineBlock xss ->
     flip mapAccum xss $ \xs -> do
       renderInlines cfg xs <* text "\n"
-  CodeBlock attr x ->
-    elCodeHighlighted attr x >> pure mempty
+  CodeBlock attr x -> do
+    lift $ _config_renderCode cfg (elCodeHighlighted attr x) attr x
+    pure mempty
   RawBlock fmt x ->
     lift $ _config_renderRaw cfg (PandocRawNode_Block fmt x) >> pure mempty
   BlockQuote xs ->
