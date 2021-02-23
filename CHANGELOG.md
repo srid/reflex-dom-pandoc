@@ -10,6 +10,7 @@
 - Remove the wrapper "div"
 - Allow configuring how to render code blocks (eg: without syntax highlighting)
 - Render img element alt attribute (#12)
+- Apply attributes for `<table>`
 
 ## 0.6.0.0
 

@@ -131,9 +131,9 @@ renderBlock cfg = \case
       renderInlines cfg xs
   HorizontalRule ->
     el "hr" blank >> pure mempty
-  Table _attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
-    -- TODO: Rendering is basic, and needs to handle with all attributes of the AST
-    el "table" $ do
+  Table attr _captions _colSpec (TableHead _ hrows) tbodys _tfoot -> do
+    -- TODO: Apply captions, colSpec, etc.
+    elPandocAttr "table" attr $ do
       x <- el "thead" $ do
         flip mapAccum hrows $ \(Row _ cells) -> do
           el "tr" $ do
