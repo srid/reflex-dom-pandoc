@@ -87,9 +87,9 @@ instance PandocRaw (StaticDomBuilderT t m) where
       )
   elPandocRaw = \case
     PandocRawNode_Block "html" s ->
-      elClass "div" "pandoc-raw-html-block" $ elPandocRawHtmlStatic s
+      elPandocRawHtmlStatic s
     PandocRawNode_Inline "html" s ->
-      elClass "span" "pandoc-raw-html-inline" $ elPandocRawHtmlStatic s
+      elPandocRawHtmlStatic s
     x ->
       elPandocRawNodeSafe x
 
