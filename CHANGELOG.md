@@ -1,6 +1,6 @@
 # Change Log for reflex-dom-pandoc
 
-## Unreleased
+## 1.0.0.0
 
 - Drop `URILink` and simplify link render configuration (#11)
 - Get rid of `PandocRaw` complexity (pass raw node render as a function) (#13)

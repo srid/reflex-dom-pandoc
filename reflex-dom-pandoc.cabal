@@ -1,7 +1,7 @@
 cabal-version: 2.2
 
 name:           reflex-dom-pandoc
-version:        0.7.9.0
+version:        1.0.0.0
 synopsis:       Render Pandoc documents to HTML using reflex-dom
 description:    Please see the README on GitHub at <https://github.com/srid/reflex-dom-pandoc>
 homepage:       https://github.com/srid/reflex-dom-pandoc#readme
@@ -50,4 +50,3 @@ library
     , reflex
     , constraints
   default-language: Haskell2010
-
