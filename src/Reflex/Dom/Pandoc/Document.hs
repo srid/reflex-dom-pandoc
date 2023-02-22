@@ -7,7 +7,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Reflex.Dom.Pandoc.Document
@@ -146,11 +145,11 @@ renderBlock cfg = \case
               el "tr" $ do
                 flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
                   el "td" $ renderBlocks cfg blks
+  Figure attr _captions xs ->
+    elPandocAttr "img" attr $ renderBlocks cfg xs
   Div attr xs ->
     elPandocAttr "div" attr $
       renderBlocks cfg xs
-  Null ->
-    blank >> pure mempty
   where
     checkboxEl checked = do
       let attrs =
