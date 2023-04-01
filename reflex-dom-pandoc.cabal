@@ -40,7 +40,7 @@ library
     , lens
     , lens-aeson
     , mtl
-    , pandoc-types >= 0.21
+    , pandoc-types >= 1.23
     , reflex-dom-core
     , safe
     , skylighting >= 0.9
