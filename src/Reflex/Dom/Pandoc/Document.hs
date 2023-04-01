@@ -145,8 +145,7 @@ renderBlock cfg = \case
               el "tr" $ do
                 flip mapAccum cells $ \(Cell _ _ _ _ blks) ->
                   el "td" $ renderBlocks cfg blks
-  Figure attr _captions xs ->
-    elPandocAttr "img" attr $ renderBlocks cfg xs
+  Figure _attr _captions xs -> renderBlocks cfg xs
   Div attr xs ->
     elPandocAttr "div" attr $
       renderBlocks cfg xs
